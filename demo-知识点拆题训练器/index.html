@@ -16,6 +16,7 @@
     <div class="nav-spacer"></div>
     <button class="nav-btn active" id="navDashBtn" type="button">📊 看板</button>
     <button class="nav-btn" id="navLibBtn" type="button">📚 知识库</button>
+    <button class="nav-btn" id="navRecBtn" type="button">📷 错题识别</button>
     <button class="nav-btn" id="navColBtn" type="button">错题集 <span class="badge" id="colBadge">0</span></button>
     <button class="icon-btn" id="settingsBtn" type="button" title="设置" aria-label="设置">⚙️</button>
   </div>
@@ -48,6 +49,53 @@
     <div class="dash-list">
       <h3>📈 最近练习</h3>
       <div id="dashRecent"></div>
+    </div>
+  </div>
+
+  <!-- ===== 错题识别 ===== -->
+  <div class="view" id="viewRecognize">
+    <div class="card">
+      <h2>📷 拍照识别错题 <span class="tag">AI 视觉识别</span></h2>
+      <p class="sub">上传错题照片，识别题目原文、学生答案与正确答案，自动匹配知识点；确认后可一键记录到错题集。</p>
+      <div class="upload-row">
+        <label class="upload-btn">📷 拍照 / 上传图片
+          <input type="file" id="recImageInput" accept="image/*">
+        </label>
+      </div>
+      <div class="preview-wrap" id="recPreviewWrap">
+        <div class="preview-box">
+          <img id="recPreviewImg" alt="错题图片预览">
+          <button class="clear-img" id="recClearImgBtn" type="button" title="清除图片">✕</button>
+        </div>
+        <div style="flex:1;min-width:220px">
+          <div class="rec-btns">
+            <button class="btn outline sm" id="recRecognizeBtn" type="button">🤖 AI 识别</button>
+            <button class="btn outline sm" id="recDemoBtn" type="button">🧪 示例识别（无需API）</button>
+          </div>
+          <div class="recognize-status" id="recStatus">上传图片后可点「AI 识别」（需在 ⚙️ 设置配置支持视觉的模型）；没有 API 时点「示例识别」体验完整流程。</div>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="recResultCard" style="display:none">
+      <h2>📄 识别结果与记录 <span class="tag">可编辑</span></h2>
+      <p class="sub">识别结果可手动修正；确认知识点后点击底部按钮，记录到错题集。</p>
+      <div class="field">
+        <label for="recQuestion">📝 题目原文</label>
+        <textarea id="recQuestion" rows="4" placeholder="识别到的题目原文"></textarea>
+      </div>
+      <div class="grid-2">
+        <div class="field"><label for="recStudent">✍️ 学生答案（你的作答）</label><input type="text" id="recStudent" placeholder="—"></div>
+        <div class="field"><label for="recCorrect">✅ 正确答案</label><input type="text" id="recCorrect" placeholder="—"></div>
+      </div>
+      <div class="field">
+        <label>🧩 匹配到的知识点（点击选择，可多选）</label>
+        <div class="kp-suggest" id="recKpSuggest"></div>
+      </div>
+      <div class="field">
+        <label for="recKpManual">或手动输入知识点（可选，与上面选中项合并记录）</label>
+        <input type="text" id="recKpManual" placeholder="例如：氧化还原反应">
+      </div>
+      <button class="btn" id="recSaveBtn" type="button">💾 记录到错题集</button>
     </div>
   </div>
 
