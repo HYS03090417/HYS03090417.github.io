@@ -116,7 +116,7 @@ img{max-width:100%;display:block}
 .btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
 
 /* ===== 看板 ===== */
-.dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:22px}
 .dash-card{
   background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;text-align:center;box-shadow:var(--shadow);
 }
