@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知识点拆题训练器</title>
+<style>
+:root{
+  --primary:#0d9488;
+  --primary-dark:#0f766e;
+  --primary-light:#ccfbf1;
+  --blue:#2f80ed;
+  --ink:#1e293b;
+  --ink-2:#475569;
+  --muted:#64748b;
+  --danger:#ef4444;
+  --radius:16px;
+  --shadow:0 4px 18px rgba(13,148,136,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Segoe UI",system-ui,-apple-system,sans-serif;
+  background:linear-gradient(180deg,#e8f8f6 0%,#eaf3ff 100%);
+  color:var(--ink);
+  min-height:100vh;
+  line-height:1.75;
+}
+/* ===== 顶栏 ===== */
+.app-header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(8px);
+  box-shadow:0 2px 12px rgba(15,118,110,.08);
+}
+.header-inner{
+  max-width:1000px;margin:0 auto;padding:12px 16px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;color:var(--primary-dark);letter-spacing:.5px}
+.brand .logo{
+  width:38px;height:38px;border-radius:12px;flex:none;
+  background:linear-gradient(135deg,#14b8a6,#2f80ed);
+  display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;
+  box-shadow:0 4px 10px rgba(20,184,166,.35);
+}
+.nav-spacer{flex:1}
+.nav-btn{
+  border:1px solid #cbd5e1;background:#fff;color:var(--ink-2);
+  border-radius:999px;padding:8px 16px;font-size:14px;cursor:pointer;
+  transition:.2s;font-weight:600;font-family:inherit;
+}
+.nav-btn:hover{border-color:var(--primary);color:var(--primary)}
+.nav-btn.active{
+  background:linear-gradient(135deg,#0d9488,#2f80ed);color:#fff;border-color:transparent;
+  box-shadow:0 4px 12px rgba(13,148,136,.3);
+}
+.nav-btn .badge{
+  display:inline-block;min-width:20px;padding:0 6px;margin-left:4px;
+  border-radius:999px;background:#fee2e2;color:#dc2626;font-size:12px;font-weight:700;
+}
+.nav-btn.active .badge{background:#fff;color:var(--primary-dark)}
+.icon-btn{
+  background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:8px 11px;
+  font-size:16px;cursor:pointer;transition:.2s;
+}
+.icon-btn:hover{border-color:var(--primary);transform:rotate(10deg)}
+/* ===== 布局 ===== */
+.container{max-width:1000px;margin:0 auto;padding:20px 16px 50px}
+.view{display:none}
+.view.active{display:block;animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.notice{
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;
+  border-radius:12px;padding:12px 16px;margin-bottom:18px;font-size:14px;
+}
+.notice .close{margin-left:auto;cursor:pointer;background:none;border:none;font-size:16px;color:#9a3412}
+/* ===== 卡片 ===== */
+.card{
+  background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:22px;margin-bottom:20px;border:1px solid #e2eef0;
+}
+.card h2{font-size:19px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.card .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+.card.photo-card{background:linear-gradient(160deg,#f0fdfa 0%,#ecfeff 55%,#f0f9ff 100%)}
+.card.exam-card{background:linear-gradient(160deg,#f4fdf6 0%,#effefc 55%,#f0f9ff 100%);border-color:#d7f0e2}
+.tag{
+  display:inline-block;font-size:12px;font-weight:700;color:var(--primary-dark);
+  background:var(--primary-light);border-radius:999px;padding:2px 10px;margin-left:auto;flex:none;
+}
+/* ===== 按钮 ===== */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border:none;cursor:pointer;border-radius:12px;padding:11px 20px;
+  font-size:15px;font-weight:700;transition:.2s;color:#fff;font-family:inherit;
+  background:linear-gradient(135deg,#0d9488,#14b8a6);
+  box-shadow:0 4px 12px rgba(13,148,136,.25);
+}
+.btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 16px rgba(13,148,136,.35)}
+.btn:disabled{opacity:.65;cursor:not-allowed;transform:none;box-shadow:none}
+.btn.blue{background:linear-gradient(135deg,#2563eb,#2f80ed);box-shadow:0 4px 12px rgba(47,128,237,.25)}
+.btn.outline{background:#fff;color:var(--primary-dark);border:1.5px solid var(--primary);box-shadow:none}
+.btn.danger{background:linear-gradient(135deg,#f43f5e,#ef4444);box-shadow:0 4px 12px rgba(239,68,68,.22)}
+.btn.sm{padding:7px 14px;font-size:13px;border-radius:10px}
+/* ===== 上传 ===== */
+.upload-row{display:flex;gap:12px;flex-wrap:wrap}
+.upload-btn{
+  display:inline-flex;align-items:center;gap:8px;
+  border:2px dashed #5eead4;background:rgba(255,255,255,.72);
+  color:var(--primary-dark);font-weight:700;font-size:15px;
+  border-radius:14px;padding:14px 24px;cursor:pointer;transition:.2s;
+}
+.upload-btn:hover{background:#ccfbf1;border-color:var(--primary)}
+.upload-btn input{display:none}
+.preview-wrap{margin-top:16px;display:none}
+.preview-wrap.show{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.preview-box{position:relative}
+.preview-box img{
+  max-width:260px;width:100%;border-radius:12px;display:block;
+  border:1px solid #d1e6e3;box-shadow:0 4px 12px rgba(13,148,136,.12);
+}
+.clear-img{
+  position:absolute;top:-8px;right:-8px;width:26px;height:26px;border-radius:50%;
+  background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:14px;line-height:1;
+  box-shadow:0 2px 6px rgba(239,68,68,.4);
+}
+.recognize-status{font-size:13px;color:var(--muted);margin-top:10px}
+.recognize-status.err{color:#dc2626;font-weight:600}
+.recognize-status.ok{color:#059669;font-weight:600}
+/* ===== 表单 ===== */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;font-weight:700;color:var(--ink-2);margin-bottom:6px}
+input[type=text],input[type=password],select,textarea{
+  width:100%;border:1.5px solid #cbd5e1;border-radius:10px;padding:10px 12px;
+  font-size:15px;font-family:inherit;color:var(--ink);background:#fff;transition:.2s;
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,148,136,.15)}
+textarea{resize:vertical;min-height:64px}
+.readonly-field{background:#f8fafc;border-color:#e2e8f0;color:var(--ink-2)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:640px){.grid-2{grid-template-columns:1fr}}
+/* ===== 输出区 ===== */
+.output{
+  margin-top:18px;border-radius:14px;border:1px solid #dbe7e9;background:#fbfefe;
+  padding:18px;max-height:500px;overflow-y:auto;font-size:15px;
+}
+.output:empty{display:none}
+.markdown-body h2{font-size:18px;margin:16px 0 8px;padding-left:10px;border-left:4px solid var(--primary);color:var(--primary-dark)}
+.markdown-body h3{font-size:16px;margin:14px 0 6px;color:var(--blue)}
+.markdown-body h4{font-size:15px;margin:12px 0 6px;color:var(--primary-dark)}
+.markdown-body p{margin:6px 0}
+.markdown-body ul,.markdown-body ol{margin:6px 0 6px 22px}
+.markdown-body li{margin:3px 0}
+.markdown-body strong{color:var(--primary-dark)}
+.markdown-body code{background:#eef2ff;color:#4338ca;border-radius:4px;padding:1px 5px;font-size:13px}
+.markdown-body pre{background:#0f172a;color:#e2e8f0;border-radius:10px;padding:12px;overflow-x:auto;margin:8px 0}
+.markdown-body pre code{background:none;color:inherit;padding:0}
+.placeholder{color:var(--muted);text-align:center;padding:28px 10px;font-size:14px}
+.error-box{
+  background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;
+  border-radius:10px;padding:12px 14px;font-size:14px;
+}
+.big-spinner{
+  width:34px;height:34px;border:4px solid #c7f5ec;border-top-color:var(--primary);
+  border-radius:50%;margin:0 auto 12px;animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ===== 真题查询行 ===== */
+.exam-row{display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:12px;align-items:end}
+@media(max-width:760px){.exam-row{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.exam-row{grid-template-columns:1fr}}
+/* ===== 错题集 ===== */
+.collection-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.collection-head h2{font-size:20px;color:var(--primary-dark)}
+.collection-head .badge{
+  display:inline-block;min-width:22px;padding:2px 8px;border-radius:999px;
+  background:var(--primary-light);color:var(--primary-dark);font-size:13px;font-weight:700;
+}
+.empty-state{
+  text-align:center;padding:56px 20px;color:var(--muted);
+  background:#fff;border-radius:var(--radius);border:2px dashed #c7d6d8;font-size:15px;
+}
+.empty-state .icon{font-size:52px;margin-bottom:12px}
+.record-card{
+  background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  border:1px solid #e2eef0;padding:16px;margin-bottom:14px;
+  display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;
+}
+.record-card .thumb{
+  width:150px;max-width:100%;border-radius:10px;overflow:hidden;flex:none;
+  background:#f1f5f9;border:1px solid #e2e8f0;
+}
+.record-card .thumb img{width:150px;max-width:100%;height:auto;display:block}
+.record-card .thumb .no-img{height:84px;display:flex;align-items:center;justify-content:center;font-size:30px;color:#94a3b8}
+.record-info{flex:1;min-width:220px}
+.record-info .kp{font-weight:800;font-size:16px;color:var(--primary-dark);margin-bottom:4px}
+.record-info .date{font-size:13px;color:var(--muted);margin-bottom:10px}
+.record-actions{display:flex;gap:8px;flex:none}
+@media(max-width:520px){.record-actions{width:100%}.record-actions .btn{flex:1}}
+.collection-foot{margin-top:22px;text-align:center}
+/* ===== 弹窗 ===== */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:100;
+  display:none;align-items:center;justify-content:center;padding:16px;
+  backdrop-filter:blur(2px);
+}
+.modal-overlay.show{display:flex}
+.modal{
+  background:#fff;border-radius:18px;width:100%;max-width:680px;max-height:88vh;
+  display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.25);
+  animation:pop .2s ease;
+}
+@keyframes pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-head{
+  display:flex;align-items:center;gap:10px;padding:14px 20px;flex:none;
+  border-bottom:1px solid #e2e8f0;background:linear-gradient(135deg,#f0fdfa,#eff6ff);
+}
+.modal-head h3{font-size:17px;flex:1}
+.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1}
+.modal-close:hover{color:var(--danger)}
+.modal-body{padding:18px 20px;overflow-y:auto;font-size:15px}
+.modal-foot{padding:14px 20px;border-top:1px solid #e2e8f0;display:flex;gap:10px;justify-content:flex-end;flex:none}
+.modal-overlay.confirm .modal{max-width:420px}
+.confirm-msg{font-size:15px;color:var(--ink-2)}
+/* ===== Toast ===== */
+.toast{
+  position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
+  background:#0f172a;color:#fff;padding:11px 20px;border-radius:999px;
+  font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:200;
+  opacity:0;pointer-events:none;transition:.3s;max-width:90vw;text-align:center;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{background:#059669}
+.toast.error{background:#dc2626}
+.demo-bar{
+  display:flex;flex-direction:column;gap:8px;
+  background:linear-gradient(135deg,#fff7ed,#fefce8);
+  border:1px dashed #fbbf24;border-radius:14px;padding:14px 18px;margin-bottom:18px;
+}
+.demo-bar .demo-title{font-weight:800;color:#b45309;font-size:15px}
+.demo-bar p{font-size:13px;color:#92400e;margin:0}
+.demo-btns{display:flex;gap:10px;flex-wrap:wrap}
+.demo-bar .btn.outline{border-color:#f59e0b;color:#b45309}
+.demo-bar .btn.outline:hover{background:#fef3c7}
+.help-card{
+  background:#fff;border:1px solid #dbe7e9;border-radius:14px;
+  padding:12px 18px;margin-bottom:18px;box-shadow:var(--shadow);
+}
+.help-card summary{
+  cursor:pointer;font-weight:700;color:var(--primary-dark);font-size:14px;
+  list-style:none;display:flex;align-items:center;gap:6px;
+}
+.help-card summary::-webkit-details-marker{display:none}
+.help-card summary::after{content:"▾";margin-left:auto;color:var(--muted);transition:.2s}
+.help-card[open] summary::after{transform:rotate(180deg)}
+.help-card ol{margin:10px 0 4px 20px;font-size:14px;color:var(--ink-2)}
+.help-card li{margin:6px 0}
+.help-card code{background:#eef2ff;color:#4338ca;border-radius:4px;padding:1px 5px;font-size:13px}
+.demo-note{font-size:12px;color:var(--muted);margin-top:12px;padding-top:10px;border-top:1px dashed #dbe7e9;font-style:italic}
+footer{margin-top:26px;text-align:center;color:var(--muted);font-size:13px;padding:8px}
+</style>
+</head><body>
+
+<header class="app-header">
+  <div class="header-inner">
+    <div class="brand"><span class="logo">📝</span>知识点拆题训练器</div>
+    <div class="nav-spacer"></div>
+    <button class="nav-btn active" id="navTrainBtn">✏️ 训练</button>
+    <button class="nav-btn" id="navCollectionBtn">📚 错题集 <span class="badge" id="collBadge">0</span></button>
+    <button class="icon-btn" id="settingsBtn" title="设置" aria-label="设置">⚙️</button>
+  </div>
+</header>
+
+<main class="container">
+  <div class="notice" id="apiNotice">
+    <span>💡 使用 AI 功能前，请先点击右上角 <b>⚙️</b> 填写 DeepSeek API Key（仅保存在本机浏览器中）。</span>
+    <button class="close" type="button" aria-label="关闭提示">✕</button>
+  </div>
+
+  <div class="demo-bar" id="demoBar">
+    <div class="demo-title">🎓 作品集演示模式</div>
+    <p>还没有配置 API Key？点下面的按钮，无需联网即可体验示例效果（演示内容不会保存到错题集）。</p>
+    <div class="demo-btns">
+      <button class="btn outline sm" id="demoTrainBtn" type="button">🧩 查看示例训练题</button>
+      <button class="btn outline sm" id="demoExamBtn" type="button">📖 查看示例高考真题</button>
+    </div>
+  </div>
+
+  <details class="help-card" id="helpCard">
+    <summary>❓ 作品集使用说明（点开查看）</summary>
+    <ol>
+      <li>这是一个<b>单文件网页</b>：把本文件发给任何人，用浏览器双击即可打开，无需安装任何软件。</li>
+      <li>AI 生成功能需要 DeepSeek API Key：点右上角 <b>⚙️ 设置</b> 填写并保存（Key 只保存在本机浏览器，不会上传到任何服务器）。</li>
+      <li>没有 Key 时，可先使用上面的「作品集演示模式」查看内置示例效果。</li>
+      <li>想生成网址发给别人：把本文件拖到 <b>Netlify Drop</b>（app.netlify.com/drop），或上传到 <b>GitHub Pages</b> / <b>Gitee Pages</b>，即可获得可分享的网址。</li>
+      <li>错题记录与图片保存在浏览器 localStorage 中，清除浏览器数据会一并删除，请注意。</li>
+    </ol>
+  </details>
+
+  <!-- ===== 训练视图 ===== -->
+  <div class="view active" id="viewTrain">
+
+    <!-- 模块1：拍照上传错题识别知识点 -->
+    <section class="card photo-card">
+      <h2>📷 拍照上传错题识别知识点 <span class="tag">AI 视觉识别</span></h2>
+      <p class="sub">上传错题照片，自动识别题目内容与学生作答，并提取知识点填入下方输入框。</p>
+      <div class="upload-row">
+        <label class="upload-btn">📷 拍照 / 上传图片
+          <input type="file" id="imageInput" accept="image/*">
+        </label>
+      </div>
+      <div class="preview-wrap" id="previewWrap">
+        <div class="preview-box">
+          <img id="previewImg" alt="错题图片预览">
+          <button class="clear-img" id="clearImgBtn" title="清除图片" type="button">✕</button>
+        </div>
+        <div style="flex:1;min-width:220px">
+          <button class="btn outline sm" id="recognizeBtn">🔄 重新识别</button>
+          <div class="recognize-status" id="recognizeStatus">上传图片后将自动识别知识点…</div>
+        </div>
+      </div>
+      <div class="grid-2" id="recognizeResult" style="display:none;margin-top:18px">
+        <div class="field" style="grid-column:1/-1">
+          <label>📄 题目原文（识别结果）</label>
+          <textarea id="recQuestion" rows="4" class="readonly-field" readonly placeholder="识别到的题目原文"></textarea>
+        </div>
+        <div class="field">
+          <label>✍️ 学生答案</label>
+          <input type="text" id="recStudent" class="readonly-field" readonly placeholder="—">
+        </div>
+        <div class="field">
+          <label>✅ 正确答案</label>
+          <input type="text" id="recCorrect" class="readonly-field" readonly placeholder="—">
+        </div>
+      </div>
+    </section>
+
+    <!-- 模块2：知识点输入与训练题生成 -->
+    <section class="card">
+      <h2>🧩 知识点输入与训练题生成 <span class="tag">AI 拆解</span></h2>
+      <p class="sub">输入知识点，AI 将拆解为层层递进的子知识点，并逐题生成训练题与综合挑战题（答案 + 解析）。</p>
+      <div class="field">
+        <label for="kpInput">知识点</label>
+        <input type="text" id="kpInput" placeholder="请输入知识点（例如：分数加减法、化学工艺流程题）">
+      </div>
+      <button class="btn" id="genBtn" type="button">✨ 生成训练题</button>
+      <div class="output markdown-body" id="trainOutput"></div>
+    </section>
+
+    <!-- 模块3：历年高考真题查询 -->
+    <section class="card exam-card">
+      <h2>📖 历年高考真题查询 <span class="tag">AI 出题</span></h2>
+      <p class="sub">按科目、年份与知识点关键词，生成一道符合当年高考风格的真题（含答案与解析）。</p>
+      <div class="exam-row">
+        <div class="field">
+          <label for="subjectSel">科目</label>
+          <select id="subjectSel"></select>
+        </div>
+        <div class="field">
+          <label for="yearSel">年份</label>
+          <select id="yearSel"></select>
+        </div>
+        <div class="field">
+          <label for="keywordInput">知识点关键词（可选）</label>
+          <input type="text" id="keywordInput" placeholder="例如：函数单调性、细胞呼吸（留空则随机出题）">
+        </div>
+        <div class="field">
+          <button class="btn blue" id="examBtn" type="button" style="width:100%">🔍 查询真题</button>
+        </div>
+      </div>
+      <div class="output markdown-body" id="examOutput"></div>
+    </section>
+  </div>
+
+  <!-- ===== 错题集视图 ===== -->
+  <div class="view" id="viewCollection">
+    <div class="collection-head">
+      <h2>📚 错题集</h2>
+      <span class="badge" id="collBadge2">0</span>
+      <div class="nav-spacer"></div>
+    </div>
+    <div id="collectionList"></div>
+    <div class="collection-foot">
+      <button class="btn danger" id="clearAllBtn" type="button">🗑️ 清空全部</button>
+    </div>
+  </div>
+</main>
+
+<footer>知识点拆题训练器 · 数据保存在本机浏览器 localStorage 中 · 仅供学习使用</footer>
+
+<!-- ===== 详情弹窗 ===== -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="detailTitle">📄 错题详情</h3>
+      <button class="modal-close" type="button" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="markdown-body" id="detailBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 确认弹窗 ===== -->
+<div class="modal-overlay confirm" id="confirmModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="confirmTitle">确认操作</h3>
+      <button class="modal-close" type="button" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body"><p class="confirm-msg" id="confirmMsg"></p></div>
+    <div class="modal-foot">
+      <button class="btn outline sm" id="confirmCancel" type="button">取消</button>
+      <button class="btn danger sm" id="confirmOk" type="button">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 设置弹窗 ===== -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>⚙️ 设置</h3>
+      <button class="modal-close" type="button" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="apiKeyInput">DeepSeek API Key</label>
+        <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="apiBaseInput">API 地址</label>
+        <input type="text" id="apiBaseInput" placeholder="https://api.deepseek.com">
+      </div>
+      <div class="field">
+        <label for="modelInput">模型名称</label>
+        <input type="text" id="modelInput" placeholder="deepseek-chat">
+      </div>
+      <p style="font-size:13px;color:var(--muted)">🔒 以上设置仅保存在当前浏览器的 localStorage 中，不会上传到其他服务器。若你的 DeepSeek 服务支持视觉模型，可在“模型名称”中填写对应模型以启用图片识别。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn outline sm" data-close="settingsModal" type="button">取消</button>
+      <button class="btn sm" id="saveSettingsBtn" type="button">💾 保存设置</button>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ===================== 常量与全局状态 ===================== */
+var LS_KEY='kpt_api_key';
+var LS_BASE='kpt_api_base';
+var LS_MODEL='kpt_model';
+var LS_ITEMS='kpt_error_items';
+
+var currentImageSend=null;   // 用于发送识别的压缩图片（Base64）
+var currentImageStore=null;  // 用于预览与存入错题集的压缩图片（Base64）
+var confirmAction=null;
+
+function $(id){ return document.getElementById(id); }
+
+/* ===================== 工具函数 ===================== */
+function escapeHtml(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function inlineMd(text){
+  return escapeHtml(text)
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g,'<em>$1</em>');
+}
+function renderMarkdown(md){
+  if(!md) return '';
+  var lines=String(md).replace(/\r\n?/g,'\n').split('\n');
+  var html='', inCode=false, code=[], listType=null, para=[];
+  function closeList(){ if(listType){ html+=(listType==='ul'?'</ul>':'</ol>'); listType=null; } }
+  function flushPara(){
+    if(para.length){
+      html+='<p>'+para.map(function(l){ return inlineMd(l.replace(/\\\s*$/,'')); }).join('<br>')+'</p>';
+      para=[];
+    }
+  }
+  function flushCode(){ if(inCode){ html+='<pre><code>'+escapeHtml(code.join('\n'))+'</code></pre>'; code=[]; inCode=false; } }
+  for(var i=0;i<lines.length;i++){
+    var raw=lines[i];
+    if(/^\s*```/.test(raw)){
+      if(inCode){ flushCode(); } else { flushPara(); closeList(); inCode=true; }
+      continue;
+    }
+    if(inCode){ code.push(raw); continue; }
+    var t=raw.trim();
+    if(!t){ flushPara(); closeList(); continue; }
+    var h=t.match(/^(#{1,6})\s+(.*)$/);
+    if(h){
+      flushPara(); closeList();
+      html+='<h'+h[1].length+'>'+inlineMd(h[2])+'</h'+h[1].length+'>';
+      continue;
+    }
+    var ul=t.match(/^[-*+]\s+(.*)$/);
+    if(ul){
+      flushPara();
+      if(listType!=='ul'){ closeList(); html+='<ul>'; listType='ul'; }
+      html+='<li>'+inlineMd(ul[1])+'</li>';
+      continue;
+    }
+    var ol=t.match(/^\d+[.)]\s+(.*)$/);
+    if(ol){
+      flushPara();
+      if(listType!=='ol'){ closeList(); html+='<ol>'; listType='ol'; }
+      html+='<li>'+inlineMd(ol[1])+'</li>';
+      continue;
+    }
+    closeList();
+    para.push(t);
+  }
+  flushPara(); closeList(); flushCode();
+  return html;
+}
+function parseJson(text){
+  if(!text) return null;
+  text=String(text).trim().replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
+  try{ return JSON.parse(text); }catch(e){}
+  var s=text.indexOf('{'), e=text.lastIndexOf('}');
+  if(s>-1 && e>s){ try{ return JSON.parse(text.slice(s,e+1)); }catch(e2){} }
+  return null;
+}
+function toast(msg,type){
+  var el=document.createElement('div');
+  el.className='toast '+(type||'');
+  el.textContent=msg;
+  document.body.appendChild(el);
+  requestAnimationFrame(function(){ el.classList.add('show'); });
+  setTimeout(function(){ el.classList.remove('show'); setTimeout(function(){ el.remove(); },320); },2600);
+}
+function setLoading(btn,loading,text){
+  if(loading){
+    btn.dataset.orig=btn.textContent;
+    btn.disabled=true;
+    if(text) btn.textContent=text;
+  }else{
+    btn.disabled=false;
+    btn.textContent=btn.dataset.orig||btn.textContent;
+  }
+}
+function formatDate(ts){
+  var d=new Date(ts);
+  function p(n){ return String(n).padStart(2,'0'); }
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+function setStatus(text,type){
+  var el=$('recognizeStatus');
+  el.textContent=text;
+  el.className='recognize-status'+(type==='err'?' err':(type==='ok'?' ok':''));
+}
+
+/* ===================== localStorage 错题集 ===================== */
+function getItems(){
+  try{ return JSON.parse(localStorage.getItem(LS_ITEMS)||'[]'); }
+  catch(e){ return []; }
+}
+function saveItems(items){
+  try{ localStorage.setItem(LS_ITEMS,JSON.stringify(items)); return true; }
+  catch(e){ toast('保存失败：浏览器存储空间不足，请删除部分记录','error'); return false; }
+}
+function updateBadges(){
+  var n=getItems().length;
+  $('collBadge').textContent=n;
+  $('collBadge2').textContent=n;
+}
+function addRecord(rec){
+  var items=getItems();
+  rec.id='r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  items.unshift(rec);
+  if(items.length>20){ items.length=20; toast('已保存，并自动清理了最早的部分记录'); }
+  saveItems(items);
+  updateBadges();
+}
+
+/* ===================== DeepSeek API ===================== */
+function getApiConfig(){
+  return {
+    key:(localStorage.getItem(LS_KEY)||'').trim(),
+    base:(localStorage.getItem(LS_BASE)||'https://api.deepseek.com').trim().replace(/\/+$/,''),
+    model:(localStorage.getItem(LS_MODEL)||'deepseek-chat').trim()||'deepseek-chat'
+  };
+}
+function callDeepSeek(messages){
+  var cfg=getApiConfig();
+  if(!cfg.key) return Promise.reject(new Error('请先在 ⚙️ 设置 中填写 DeepSeek API Key'));
+  return fetch(cfg.base+'/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.key},
+    body:JSON.stringify({model:cfg.model,messages:messages,temperature:0.7,max_tokens:4096})
+  }).then(function(res){
+    if(!res.ok){
+      return res.json().then(function(j){
+        var msg='API 请求失败（HTTP '+res.status+'）';
+        if(j&&j.error&&j.error.message) msg=j.error.message;
+        throw new Error(msg);
+      });
+    }
+    return res.json();
+  }).then(function(j){
+    var content=j&&j.choices&&j.choices[0]&&j.choices[0].message?j.choices[0].message.content:'';
+    if(!content) throw new Error('AI 未返回有效内容，请重试');
+    return content;
+  });
+}
+
+/* ===================== 图片处理 ===================== */
+function readFileAsDataURL(file){
+  return new Promise(function(resolve,reject){
+    var fr=new FileReader();
+    fr.onload=function(){ resolve(fr.result); };
+    fr.onerror=function(){ reject(new Error('读取文件失败')); };
+    fr.readAsDataURL(file);
+  });
+}
+function compressImage(dataUrl,maxW,quality){
+  return new Promise(function(resolve){
+    var img=new Image();
+    img.onload=function(){
+      try{
+        var scale=Math.min(1,maxW/img.width);
+        var w=Math.max(1,Math.round(img.width*scale));
+        var h=Math.max(1,Math.round(img.height*scale));
+        var canvas=document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg',quality));
+      }catch(e){ resolve(dataUrl); }
+    };
+    img.onerror=function(){ resolve(dataUrl); };
+    img.src=dataUrl;
+  });
+}
+
+/* ===================== 模块1：拍照识别 ===================== */
+$('imageInput').addEventListener('change',function(e){
+  var file=e.target.files&&e.target.files[0];
+  e.target.value='';
+  if(!file) return;
+  if(!/^image\//.test(file.type)){ toast('请选择图片文件','error'); return; }
+  setStatus('正在处理图片…','');
+  readFileAsDataURL(file).then(function(raw){
+    return Promise.all([
+      compressImage(raw,1100,0.8),
+      compressImage(raw,720,0.68)
+    ]).then(function(arr){
+      currentImageSend=arr[0];
+      currentImageStore=arr[1];
+      $('previewImg').src=currentImageStore;
+      $('previewWrap').classList.add('show');
+      $('recognizeResult').style.display='none';
+      $('recQuestion').value=''; $('recStudent').value=''; $('recCorrect').value='';
+      setStatus('上传成功，正在自动识别知识点…','');
+      return recognizeImage();
+    });
+  }).catch(function(err){
+    setStatus('图片处理失败：'+err.message,'err');
+  });
+});
+function recognizeImage(){
+  if(!currentImageSend){ toast('请先上传图片','error'); return; }
+  var btn=$('recognizeBtn');
+  setLoading(btn,true,'正在识别…');
+  setStatus('AI 正在识别图片内容，请稍候…','');
+  var prompt='你是一位经验丰富的中小学教师。请仔细分析这张学生错题图片，提取以下信息，并只输出一个 JSON 对象（不要输出任何其他文字或 Markdown 代码块标记）：{"question":"题目原文","student_answer":"学生答案（没有则为空字符串）","correct_answer":"正确答案（无法判断则为空字符串）","knowledge_points":["最可能出错的知识点名称","其他相关知识点（可选）"]}';
+  callDeepSeek([{role:'user',content:[
+    {type:'text',text:prompt},
+    {type:'image_url',image_url:{url:currentImageSend}}
+  ]}]).then(function(content){
+    var data=parseJson(content);
+    if(!data||(!data.question&&!data.knowledge_points)) throw new Error('未能从图片中提取有效信息');
+    $('recQuestion').value=data.question||'';
+    $('recStudent').value=data.student_answer||'';
+    $('recCorrect').value=data.correct_answer||'';
+    $('recognizeResult').style.display='grid';
+    var kps=Array.isArray(data.knowledge_points)?data.knowledge_points.filter(Boolean):[];
+    if(kps.length){
+      $('kpInput').value=kps.join('、');
+      setStatus('✅ 识别成功，知识点已自动填入下方输入框','ok');
+      toast('识别成功，知识点已自动填入','success');
+    }else{
+      $('kpInput').value='';
+      setStatus('识别到题目，但未能确定知识点，请手动输入知识点','err');
+    }
+  }).catch(function(err){
+    $('recognizeResult').style.display='none';
+    $('recQuestion').value=''; $('recStudent').value=''; $('recCorrect').value='';
+    var isVision=/image|vision|multimodal|unsupported|not support|not_supported/i.test(err.message||'');
+    setStatus('未能识别，请手动输入知识点。'+(isVision?'（当前模型不支持图片输入，可在 ⚙️ 设置中更换支持视觉的模型）':''),'err');
+    if(!isVision) toast('识别失败：'+err.message,'error');
+  }).finally(function(){
+    setLoading(btn,false,'重新识别');
+  });
+}
+$('recognizeBtn').addEventListener('click',recognizeImage);
+$('clearImgBtn').addEventListener('click',function(){
+  currentImageSend=null;
+  currentImageStore=null;
+  $('previewWrap').classList.remove('show');
+  $('recognizeResult').style.display='none';
+  setStatus('已清除图片，可重新上传','');
+});
+
+/* ===================== 模块2：训练题生成 ===================== */
+function buildTrainPrompt(kp){
+  return '你是一位资深中学教师，擅长知识点拆解教学。请把知识点「'+kp+'」拆解为 3-5 个由浅入深、层层递进的子知识点，并为每个子知识点生成一道练习题（每题必须包含题目、答案、解析），最后再生成一道综合运用题（包含题目、答案、解析）。\n\n要求：\n1. 题型贴近中考/高考常见题型；\n2. 难度逐级递进；\n3. 题目、答案、解析完整规范；\n4. 严格按以下 Markdown 格式输出，不要输出其他内容：\n\n## 知识点拆解\n- 子知识点1：名称\n- 子知识点2：名称\n- ……\n\n## 专项训练\n### 子知识点1：名称\n题目：……\\\n答案：……\\\n解析：……\n\n### 子知识点2：名称\n题目：……\\\n答案：……\\\n解析：……\n\n（包含全部子知识点）\n\n## 综合挑战\n题目：……\\\n答案：……\\\n解析：……';
+}
+function generateTraining(){
+  var kp=$('kpInput').value.trim();
+  if(!kp){ toast('请先输入知识点','error'); $('kpInput').focus(); return; }
+  if(!getApiConfig().key){ toast('请先在 ⚙️ 设置 中填写 API Key','error'); openSettings(); return; }
+  var btn=$('genBtn'), out=$('trainOutput');
+  setLoading(btn,true,'正在生成…');
+  out.innerHTML='<div class="placeholder"><div class="big-spinner"></div>AI 正在拆解知识点并生成训练题，请稍候…</div>';
+  callDeepSeek([{role:'user',content:buildTrainPrompt(kp)}]).then(function(content){
+    out.innerHTML=renderMarkdown(content);
+    addRecord({
+      image:currentImageStore||'',
+      knowledge:kp,
+      content:content,
+      time:Date.now()
+    });
+    toast('训练题已生成，并已自动保存到错题集','success');
+    $('viewTrain').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }).catch(function(err){
+    out.innerHTML='<div class="error-box">生成失败：'+escapeHtml(err.message)+'</div>';
+  }).finally(function(){
+    setLoading(btn,false,'生成训练题');
+  });
+}
+$('genBtn').addEventListener('click',generateTraining);
+$('kpInput').addEventListener('keydown',function(e){ if(e.key==='Enter') generateTraining(); });
+/* ===================== 模块3：高考真题查询 ===================== */
+var SUBJECTS=['语文','数学','英语','物理','化学','生物','历史','地理','政治'];
+var YEARS=[2026,2025,2024,2023,2022,2021,2020];
+function buildExamPrompt(subject,year,keyword){
+  var kw=keyword||'无（请随机选取该科目该年份的典型高频考点）';
+  return '你是一位熟悉历年高考命题风格与考纲变化的资深教师。请以「'+year+' 年高考 '+subject+'」为背景，生成一道符合该年份前后高考命题风格的真题。\n知识点关键词：'+kw+'\n\n要求：\n1. 题目需符合该科目该年份的题型特点（如选择题、填空题、解答题等），题干完整规范；\n2. 若为选择题，需给出 A/B/C/D 四个选项；\n3. 严格按以下 Markdown 格式输出，不要输出其他内容：\n\n## 真题\n（题目内容）\n\n## 参考答案\n（答案）\n\n## 解析\n（详细解题步骤与考点分析）';
+}
+function queryExam(){
+  var subject=$('subjectSel').value, year=$('yearSel').value, keyword=$('keywordInput').value.trim();
+  if(!getApiConfig().key){ toast('请先在 ⚙️ 设置 中填写 API Key','error'); openSettings(); return; }
+  var btn=$('examBtn'), out=$('examOutput');
+  setLoading(btn,true,'正在查询…');
+  out.innerHTML='<div class="placeholder"><div class="big-spinner"></div>AI 正在生成 '+year+' 年高考 '+subject+' 真题，请稍候…</div>';
+  callDeepSeek([{role:'user',content:buildExamPrompt(subject,year,keyword)}]).then(function(content){
+    out.innerHTML=renderMarkdown(content);
+  }).catch(function(err){
+    out.innerHTML='<div class="error-box">查询失败：'+escapeHtml(err.message)+'</div>';
+  }).finally(function(){
+    setLoading(btn,false,'查询真题');
+  });
+}
+$('examBtn').addEventListener('click',queryExam);
+
+/* ===================== 弹窗 ===================== */
+function showModal(id){ $(id).classList.add('show'); document.body.style.overflow='hidden'; }
+function hideModal(id){ $(id).classList.remove('show'); document.body.style.overflow=''; }
+document.querySelectorAll('.modal-overlay').forEach(function(ov){
+  ov.addEventListener('click',function(e){ if(e.target===ov) hideModal(ov.id); });
+});
+document.querySelectorAll('.modal-close, [data-close]').forEach(function(el){
+  el.addEventListener('click',function(){
+    var id=el.getAttribute('data-close')||(el.closest('.modal-overlay')?el.closest('.modal-overlay').id:'');
+    hideModal(id);
+  });
+});
+function askConfirm(title,msg,onOk){
+  $('confirmTitle').textContent=title;
+  $('confirmMsg').textContent=msg;
+  confirmAction=onOk;
+  showModal('confirmModal');
+}
+$('confirmOk').addEventListener('click',function(){
+  hideModal('confirmModal');
+  if(confirmAction){ var fn=confirmAction; confirmAction=null; fn(); }
+});
+$('confirmCancel').addEventListener('click',function(){ hideModal('confirmModal'); confirmAction=null; });
+
+/* ===================== 设置 ===================== */
+function openSettings(){
+  $('apiKeyInput').value=localStorage.getItem(LS_KEY)||'';
+  $('apiBaseInput').value=localStorage.getItem(LS_BASE)||'https://api.deepseek.com';
+  $('modelInput').value=localStorage.getItem(LS_MODEL)||'deepseek-chat';
+  showModal('settingsModal');
+}
+$('settingsBtn').addEventListener('click',openSettings);
+$('saveSettingsBtn').addEventListener('click',function(){
+  localStorage.setItem(LS_KEY,$('apiKeyInput').value.trim());
+  localStorage.setItem(LS_BASE,$('apiBaseInput').value.trim()||'https://api.deepseek.com');
+  localStorage.setItem(LS_MODEL,$('modelInput').value.trim()||'deepseek-chat');
+  hideModal('settingsModal');
+  toast('设置已保存','success');
+  updateNotice();
+});
+function updateNotice(){
+  var hasKey=!!localStorage.getItem(LS_KEY);
+  $('apiNotice').style.display=hasKey?'none':'flex';
+  $('demoBar').style.display=hasKey?'none':'flex';
+}
+$('apiNotice').querySelector('.close').addEventListener('click',function(){ $('apiNotice').style.display='none'; });
+
+/* ===================== 错题集视图 ===================== */
+function renderCollection(){
+  var list=$('collectionList'), items=getItems();
+  if(!items.length){
+    list.innerHTML='<div class="empty-state"><div class="icon">📭</div>还没有错题记录，快去上传一道错题吧！</div>';
+    $('clearAllBtn').style.display='none';
+    return;
+  }
+  $('clearAllBtn').style.display='inline-flex';
+  list.innerHTML=items.map(function(rec){
+    var thumb=rec.image
+      ?'<img src="'+rec.image+'" alt="错题缩略图">'
+      :'<div class="no-img">🖼️</div>';
+    return '<div class="record-card">'+
+      '<div class="thumb">'+thumb+'</div>'+
+      '<div class="record-info">'+
+        '<div class="kp">'+escapeHtml(rec.knowledge||'未命名知识点')+'</div>'+
+        '<div class="date">🕐 '+formatDate(rec.time)+'</div>'+
+        '<button class="btn outline sm" onclick="viewDetail(\''+rec.id+'\')" type="button">📄 查看详情</button>'+
+      '</div>'+
+      '<div class="record-actions">'+
+        '<button class="btn danger sm" onclick="removeItem(\''+rec.id+'\')" type="button" title="删除">🗑️ 删除</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+function viewDetail(id){
+  var items=getItems();
+  var rec=null;
+  for(var i=0;i<items.length;i++){ if(items[i].id===id){ rec=items[i]; break; } }
+  if(!rec){ toast('未找到该记录','error'); return; }
+  $('detailTitle').textContent='📄 错题详情 · '+(rec.knowledge||'未命名知识点');
+  var html='';
+  if(rec.image) html+='<div style="text-align:center;margin-bottom:14px"><img src="'+rec.image+'" style="max-width:300px;width:100%;border-radius:10px;border:1px solid #e2e8f0" alt="错题原图"></div>';
+  html+='<p style="font-size:13px;color:var(--muted);margin-bottom:12px">保存时间：'+formatDate(rec.time)+'</p>';
+  html+=renderMarkdown(rec.content);
+  $('detailBody').innerHTML=html;
+  showModal('detailModal');
+}
+function removeItem(id){
+  askConfirm('删除记录','确定要删除这条错题记录吗？删除后不可恢复。',function(){
+    var items=getItems().filter(function(r){ return r.id!==id; });
+    saveItems(items);
+    updateBadges();
+    renderCollection();
+    toast('已删除','success');
+  });
+}
+$('clearAllBtn').addEventListener('click',function(){
+  askConfirm('清空全部','确定要清空错题集中的所有记录吗？此操作不可恢复。',function(){
+    saveItems([]);
+    updateBadges();
+    renderCollection();
+    toast('已清空错题集','success');
+  });
+});
+
+/* ===================== 视图切换 ===================== */
+function switchView(viewId,btnId){
+  document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+  document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+  $(viewId).classList.add('active');
+  $(btnId).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+$('navTrainBtn').addEventListener('click',function(){ switchView('viewTrain','navTrainBtn'); });
+$('navCollectionBtn').addEventListener('click',function(){ switchView('viewCollection','navCollectionBtn'); renderCollection(); });
+
+
+/* ===================== 作品集演示模式（内置示例） ===================== */
+var DEMO_TRAIN='## 知识点拆解\n- 子知识点1：同分母分数加减法\n- 子知识点2：异分母分数加减法（通分）\n- 子知识点3：带分数与分数的混合运算\n- 子知识点4：分数加减法应用题\n\n## 专项训练\n### 子知识点1：同分母分数加减法\n题目：计算 3/7 + 2/7 = ？\\\n答案：5/7\\\n解析：同分母分数相加减，分母不变，分子直接相加减：3+2=5，结果为 5/7。\n\n### 子知识点2：异分母分数加减法（通分）\n题目：计算 1/2 + 1/3 = ？\\\n答案：5/6\\\n解析：异分母分数相加减要先通分。2 与 3 的最小公倍数是 6：1/2=3/6，1/3=2/6，所以 3/6+2/6=5/6。\n\n### 子知识点3：带分数与分数的混合运算\n题目：计算 1又1/4 − 3/4 = ？\\\n答案：1/2\\\n解析：1又1/4 = 5/4，5/4 − 3/4 = 2/4，约分得 1/2。\n\n### 子知识点4：分数加减法应用题\n题目：小明喝了一杯牛奶的 1/3，接着又喝了剩下的 1/2，他一共喝了这杯牛奶的几分之几？\\\n答案：2/3\\\n解析：第一次喝 1/3，剩下 2/3；第二次喝剩下的 1/2，即 2/3×1/2=1/3。共喝 1/3+1/3=2/3。\n\n## 综合挑战\n题目：一根绳子长 3/4 米，用去 1/2 米后又接上 1/8 米，现在绳子长多少米？\\\n答案：3/8 米\\\n解析：用去后剩 3/4−1/2=3/4−2/4=1/4 米；再接上 1/8 米：1/4+1/8=2/8+1/8=3/8 米。';
+
+var DEMO_EXAM='## 真题\n已知函数 f(x)=x³−3x+1，则 f(x) 在区间 [0,2] 上的最大值与最小值之和为（　）\nA. −1　　B. 1　　C. 2　　D. 3\n\n## 参考答案\nC（最大值与最小值之和为 2）\n\n## 解析\n求导得 f′(x)=3x²−3=3(x−1)(x+1)。在区间 [0,2] 上，令 f′(x)=0 得 x=1（x=−1 不在区间内）。比较端点与驻点处的函数值：f(0)=1，f(1)=−1，f(2)=3。因此最大值为 3，最小值为 −1，二者之和为 3+(−1)=2，故选 C。本题考点为利用导数研究函数在闭区间上的最值。';
+
+function showDemoTrain(){
+  var out=$('trainOutput');
+  out.innerHTML=renderMarkdown(DEMO_TRAIN)+'<div class="demo-note">※ 以上为内置演示示例（未调用 AI，也未保存到错题集）。填写 API Key 后点击“生成训练题”即可获得真实内容。</div>';
+  switchView('viewTrain','navTrainBtn');
+  $('viewTrain').scrollIntoView({behavior:'smooth',block:'nearest'});
+  toast('已载入示例训练题（演示模式）','success');
+}
+function showDemoExam(){
+  var out=$('examOutput');
+  out.innerHTML=renderMarkdown(DEMO_EXAM)+'<div class="demo-note">※ 以上为内置演示示例（未调用 AI）。填写 API Key 后点击“查询真题”即可获得真实内容。</div>';
+  switchView('viewTrain','navTrainBtn');
+  $('viewTrain').scrollIntoView({behavior:'smooth',block:'nearest'});
+  toast('已载入示例真题（演示模式）','success');
+}
+$('demoTrainBtn').addEventListener('click',showDemoTrain);
+$('demoExamBtn').addEventListener('click',showDemoExam);
+/* ===================== 初始化 ===================== */
+(function init(){
+  SUBJECTS.forEach(function(s){
+    var o=document.createElement('option');
+    o.value=s; o.textContent=s; $('subjectSel').appendChild(o);
+  });
+  YEARS.forEach(function(y){
+    var o=document.createElement('option');
+    o.value=y; o.textContent=y+' 年'; $('yearSel').appendChild(o);
+  });
+  updateBadges();
+  updateNotice();
+  renderCollection();
+})();
+</script>
+</body>
+</html>
