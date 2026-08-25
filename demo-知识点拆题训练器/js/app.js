@@ -65,8 +65,8 @@ function totalStats(){
 }
 
 /* ===================== 视图切换 ===================== */
-var VIEWS=['viewDashboard','viewLibrary','viewDetail','viewQuiz','viewCollection'];
-var NAVMAP={viewDashboard:'navDashBtn',viewLibrary:'navLibBtn',viewCollection:'navColBtn'};
+var VIEWS=['viewDashboard','viewLibrary','viewDetail','viewQuiz','viewCollection','viewRecognize'];
+var NAVMAP={viewDashboard:'navDashBtn',viewLibrary:'navLibBtn',viewCollection:'navColBtn',viewRecognize:'navRecBtn'};
 function showView(id){
   VIEWS.forEach(function(v){$(v).classList.toggle('active',v===id);});
   ['navDashBtn','navLibBtn','navColBtn'].forEach(function(n){$(n).classList.toggle('active',false);});
@@ -250,16 +250,19 @@ function renderCollection(){
   col.forEach(function(c){
     var s=KB[c.sub]?KB[c.sub].name:c.sub;
     var item=document.createElement('div');item.className='col-item';
-    var chosenTxt=c.options[c.chosen]||'';
+    var chosenTxt=(c.type==='open')?c.student:(c.options&&c.options[c.chosen]||'');
+    var answerTxt=(c.type==='open')?c.answer:(c.options&&c.options[c.answer]||'');
     item.innerHTML='<div class="ci-top"><span class="ci-tag">'+esc(s)+' · '+esc(c.topicName)+'</span><span class="ci-date">'+esc(c.date)+'</span></div>'+
       '<div class="ci-q">'+esc(c.q)+'</div>'+
-      '<div class="ci-a">你的答案：<b style="color:var(--danger)">'+esc(chosenTxt)+'</b> ｜ 正确答案：<b style="color:var(--ok)">'+esc(c.options[c.answer])+'</b></div>'+
+      '<div class="ci-a">你的答案：<b style="color:var(--danger)">'+esc(chosenTxt)+'</b> ｜ 正确答案：<b style="color:var(--ok)">'+esc(answerTxt)+'</b></div>'+
+      (c.kps&&c.kps.length?('<div class="ci-tag" style="margin-left:8px">知识点：'+esc(c.kps.join(' / '))+'</div>'):'')+
       '<div class="ci-actions">'+
         '<button class="btn outline sm" data-act="redo">🔄 重做</button>'+
         '<button class="btn sm" data-act="master">✅ 已掌握</button>'+
         '<button class="btn danger sm" data-act="del">🗑️ 删除</button>'+
       '</div>';
     var redo=item.querySelector('[data-act=redo]');
+    if(c.type==='open'){redo.style.display='none';}
     redo.onclick=function(){
       var t=findTopic(c.sub,c.topicId);
       var q=null;
@@ -336,12 +339,167 @@ function saveSettings(){
   toast('设置已保存','success');
 }
 
+/* ===================== 错题识别 ===================== */
+var recImageStore=null;
+var KP_KEYWORDS={
+  'chem-oxidation':['氧化还原','氧化剂','还原剂','化合价','电子转移','歧化','归中','氧化产物'],
+  'chem-ions':['离子共存','离子方程式','离子反应','沉淀','电解质','弱电解质'],
+  'chem-equilibrium':['化学平衡','平衡移动','勒夏特列','平衡常数','转化率','可逆'],
+  'chem-mole':['物质的量','阿伏伽德罗','摩尔','摩尔质量','标况','气体体积','NA'],
+  'chem-electro':['原电池','电解','电极','负极','正极','阴极','阳极','燃料电池'],
+  'chem-periodic':['元素周期','原子半径','金属性','非金属性','最高价','同周期','同主族'],
+  'bio-respiration':['细胞呼吸','有氧呼吸','无氧呼吸','线粒体','ATP','呼吸作用','丙酮酸'],
+  'bio-photosynthesis':['光合作用','光反应','暗反应','叶绿体','光解','暗反应','C5'],
+  'bio-genetics':['孟德尔','遗传','基因型','表现型','分离定律','自由组合','显性','隐性','杂交','测交'],
+  'bio-dna':['DNA','碱基','复制','双螺旋','嘌呤','嘧啶','半保留'],
+  'bio-gene-expr':['转录','翻译','密码子','mRNA','tRNA','基因表达','核糖体','氨基酸'],
+  'bio-neuron':['神经','突触','反射弧','电位','神经递质','静息','动作电位'],
+  'bio-homeostasis':['内环境','稳态','血浆','组织液','淋巴','渗透压','调节']
+};
+function renderRecognize(){
+  $('recImageInput').value='';
+  $('recPreviewWrap').classList.remove('show');
+  $('recResultCard').style.display='none';
+  $('recQuestion').value='';$('recStudent').value='';$('recCorrect').value='';$('recKpManual').value='';
+  $('recKpSuggest').innerHTML='';
+  $('recStatus').textContent='上传图片后可点「AI 识别」（需配置支持视觉的模型）；没有 API 时点「示例识别」体验完整流程。';
+  $('recStatus').className='recognize-status';
+  recImageStore=null;
+}
+function recSetStatus(txt,type){
+  var el=$('recStatus');el.textContent=txt;el.className='recognize-status'+(type?(' '+type):'');
+}
+function recReadFile(file){
+  return new Promise(function(resolve,reject){
+    var fr=new FileReader();
+    fr.onload=function(){resolve(fr.result);};
+    fr.onerror=function(){reject(new Error('读取文件失败'));};
+    fr.readAsDataURL(file);
+  });
+}
+function recCompress(dataUrl,maxW,quality){
+  return new Promise(function(resolve){
+    var img=new Image();
+    img.onload=function(){
+      try{
+        var scale=Math.min(1,maxW/img.width);
+        var w=Math.max(1,Math.round(img.width*scale));
+        var h=Math.max(1,Math.round(img.height*scale));
+        var cv=document.createElement('canvas');cv.width=w;cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(cv.toDataURL('image/jpeg',quality));
+      }catch(e){resolve(dataUrl);}
+    };
+    img.onerror=function(){resolve(dataUrl);};
+    img.src=dataUrl;
+  });
+}
+function recSuggestKps(text){
+  if(!text)return [];
+  var hits=[];
+  Object.keys(KP_KEYWORDS).forEach(function(tid){
+    var kws=KP_KEYWORDS[tid],matched=0;
+    kws.forEach(function(k){if(text.indexOf(k)>-1)matched++;});
+    if(matched>0){
+      Object.keys(KB).forEach(function(sub){
+        KB[sub].topics.forEach(function(t){
+          if(t.id===tid)hits.push({sub:sub,topic:t,score:matched});
+        });
+      });
+    }
+  });
+  hits.sort(function(x,y){return y.score-x.score;});
+  return hits.slice(0,4);
+}
+function recRenderKpChips(){
+  var q=$('recQuestion').value;
+  var hits=recSuggestKps(q);
+  var box=$('recKpSuggest');box.innerHTML='';
+  if(!hits.length){
+    box.innerHTML='<span style="font-size:13.5px;color:var(--muted)">未匹配到内置知识点，可手动输入，或先输入更多题目内容。</span>';
+    return;
+  }
+  hits.forEach(function(it){
+    var chip=document.createElement('button');chip.type='button';chip.className='kp-chip';
+    var subName=KB[it.sub]?KB[it.sub].name:it.sub;
+    chip.textContent=subName+' · '+it.topic.name;
+    chip.onclick=function(){chip.classList.toggle('selected');};
+    box.appendChild(chip);
+  });
+}
+function recRecognizeAI(){
+  var cfg=getApiCfg();
+  if(!cfg.key){recSetStatus('未配置 API Key。点击「示例识别」体验完整流程，或到 ⚙️ 设置 填写 Key 后使用真实识别。','err');return;}
+  if(!recImageStore){recSetStatus('请先上传错题图片','err');return;}
+  var btn=$('recRecognizeBtn');btn.disabled=true;var old=btn.textContent;btn.textContent='AI 识别中…';
+  recSetStatus('AI 正在识别图片内容，请稍候…','');
+  var prompt='你是一位经验丰富的高中理科教师。请仔细分析这张学生错题图片，提取以下信息，只输出一个 JSON 对象（不要输出其他文字或 Markdown 标记）：{"question":"题目原文","student_answer":"学生答案（没有则为空字符串）","correct_answer":"正确答案（无法判断则为空字符串）","knowledge_points":["最可能的知识点名称"]}';
+  callAI([{role:'user',content:[{type:'text',text:prompt},{type:'image_url',image_url:{url:recImageStore}}]}])
+    .then(function(content){
+      var data=null;
+      try{data=JSON.parse(content.replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim());}catch(e){}
+      if(!data||(!data.question&&!data.knowledge_points))throw new Error('未能从图片提取有效信息');
+      $('recQuestion').value=data.question||'';
+      $('recStudent').value=data.student_answer||'';
+      $('recCorrect').value=data.correct_answer||'';
+      $('recResultCard').style.display='block';
+      recRenderKpChips();
+      var kps=(data.knowledge_points||[]).filter(Boolean);
+      if(kps.length){$('recKpManual').value=kps.join('、');}
+      recSetStatus('✅ 识别成功，请核对下方结果后记录','ok');
+    })
+    .catch(function(err){
+      var isVision=/image|vision|multimodal|unsupported|not support|not_supported/i.test(err.message||'');
+      recSetStatus('识别失败。'+(isVision?'（当前模型可能不支持图片输入，可在 ⚙️ 设置 更换支持视觉的模型）':'')+' 可改用「示例识别」或手动填写。','err');
+    })
+    .finally(function(){btn.disabled=false;btn.textContent=old;});
+}
+function recDemoFill(){
+  $('recQuestion').value='配平并分析：酸性条件下，KMnO₄ 与 H₂O₂ 反应。标出电子转移方向，并判断氧化剂、还原剂与氧化产物。';
+  $('recStudent').value='KMnO₄ 中 Mn 从 +7 降到 +2，被还原，所以 KMnO₄ 是氧化剂；H₂O₂ 中 O 从 -1 升到 0，被氧化，所以 H₂O₂ 是还原剂。';
+  $('recCorrect').value='2KMnO₄ + 5H₂O₂ + 3H₂SO₄ = 2MnSO₄ + K₂SO₄ + 5O₂↑ + 8H₂O。Mn(+7→+2)被还原，KMnO₄ 作氧化剂；O(-1→0)被氧化，H₂O₂ 作还原剂，氧化产物为 O₂。';
+  $('recResultCard').style.display='block';
+  recRenderKpChips();
+  $('recKpManual').value='';
+  recSetStatus('✅ 已载入示例错题（演示数据），可编辑后记录到错题集','ok');
+}
+function recSave(){
+  var q=$('recQuestion').value.trim();
+  var st=$('recStudent').value.trim();
+  var ans=$('recCorrect').value.trim();
+  if(!q){toast('请填写题目原文','error');return;}
+  // collect selected chips + manual
+  var kpNames=[];
+  document.querySelectorAll('#recKpSuggest .kp-chip.selected').forEach(function(ch){kpNames.push(ch.textContent.trim());});
+  if($('recKpManual').value.trim())kpNames.push($('recKpManual').value.trim());
+  var topicMatch=null;
+  if(kpNames.length){
+    var first=kpNames[0];
+    Object.keys(KB).forEach(function(sub){
+      KB[sub].topics.forEach(function(t){
+        if(first.indexOf(t.name)>-1&&!topicMatch)topicMatch={sub:sub,topic:t};
+      });
+    });
+  }
+  var sub=topicMatch?topicMatch.sub:'chemistry';
+  var topicName=topicMatch?topicMatch.topic.name:(kpNames[0]||'未分类');
+  var topicId=topicMatch?topicMatch.topic.id:'manual-'+Date.now().toString(36);
+  var col=getCol();
+  col.unshift({id:'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),sub:sub,topicId:topicId,topicName:topicName,q:q,type:'open',student:st,answer:ans,kps:kpNames,date:todayStr(),status:'open'});
+  if(col.length>60)col.length=60;
+  lsSet(LS_COL,col);
+  updateBadges();
+  renderRecognize();
+  toast('✅ 已记录到错题集','success');
+}
 /* ===================== 初始化 ===================== */
+
 function init(){
   // nav
   $('navDashBtn').onclick=function(){renderDashboard();showView('viewDashboard');};
   $('navLibBtn').onclick=function(){renderLibrary();showView('viewLibrary');};
   $('navColBtn').onclick=function(){renderCollection();showView('viewCollection');};
+  $('navRecBtn').onclick=function(){renderRecognize();showView('viewRecognize');};
   $('settingsBtn').onclick=openSettings;
   // dashboard quick start
   $('quickOx').onclick=function(){quickStart('chemistry','chem-oxidation');};
@@ -364,6 +522,26 @@ function init(){
   document.querySelectorAll('.modal-close').forEach(function(x){x.onclick=function(){x.closest('.modal-overlay').classList.remove('show');};});
   // AI
   $('aiGenBtn').onclick=aiGenerate;
+  // recognize
+  $('recImageInput').addEventListener('change',function(e){
+    var file=e.target.files&&e.target.files[0];e.target.value='';
+    if(!file)return;
+    if(!/^image\//.test(file.type)){toast('请选择图片文件','error');return;}
+    recSetStatus('正在处理图片…','');
+    recReadFile(file).then(function(raw){
+      return recCompress(raw,720,0.7);
+    }).then(function(store){
+      recImageStore=store;
+      $('recPreviewImg').src=store;
+      $('recPreviewWrap').classList.add('show');
+      recSetStatus('图片已就绪，可点击「AI 识别」或「示例识别」','');
+    }).catch(function(err){recSetStatus('图片处理失败：'+err.message,'err');});
+  });
+  $('recClearImgBtn').onclick=function(){$('recPreviewWrap').classList.remove('show');recImageStore=null;recSetStatus('已清除图片','');};
+  $('recRecognizeBtn').onclick=recRecognizeAI;
+  $('recDemoBtn').onclick=recDemoFill;
+  $('recQuestion').addEventListener('input',recRenderKpChips);
+  $('recSaveBtn').onclick=recSave;
   // reset quiz card display for first open
   $('qCard').style.display='block';
   $('resultCard').style.display='none';
