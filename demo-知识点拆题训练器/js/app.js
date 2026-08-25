@@ -10,6 +10,15 @@ function getStats(){return lsGet(LS_STATS,{});}
 function getCol(){return lsGet(LS_COL,[]);}
 function getAct(){return lsGet(LS_ACT,[]);}
 function todayStr(){var d=new Date();function p(n){return String(n).padStart(2,'0');}return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
+function calcStreak(){
+  var act=getAct();var set={};
+  act.forEach(function(x){set[x.d]=true;});
+  var d=new Date(),streak=0;
+  function fmt(dd){var p=function(n){return String(n).padStart(2,'0');};return dd.getFullYear()+'-'+p(dd.getMonth()+1)+'-'+p(dd.getDate());}
+  if(!set[fmt(d)]){d.setDate(d.getDate()-1);}
+  while(set[fmt(d)]){streak++;d.setDate(d.getDate()-1);}
+  return streak;
+}
 function $(id){return document.getElementById(id);}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
@@ -76,6 +85,7 @@ function renderDashboard(){
   var act=getAct(),today=todayStr(),todayN=0;
   act.forEach(function(a){if(a.d===today)todayN+=a.n;});
   $('dashToday').innerHTML=esc(todayN);
+  $('dashStreak').innerHTML=esc(calcStreak());
   // 最近练习
   var recent=act.slice(0,8).reverse();
   var box=$('dashRecent');
