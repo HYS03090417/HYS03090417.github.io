@@ -1,553 +1,603 @@
-(function(){
-'use strict';
-var KB = window.KB || {chemistry:{topics:[]},biology:{topics:[]}};
-/* ===================== 存储 ===================== */
-var LS_STATS='kpt_stats2', LS_COL='kpt_col2', LS_ACT='kpt_act2';
-var LS_KEY='kpt_api_key', LS_BASE='kpt_api_base', LS_MODEL='kpt_model';
-function lsGet(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
-function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){return false;}return true;}
-function getStats(){return lsGet(LS_STATS,{});}
-function getCol(){return lsGet(LS_COL,[]);}
-function getAct(){return lsGet(LS_ACT,[]);}
-function todayStr(){var d=new Date();function p(n){return String(n).padStart(2,'0');}return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
-function calcStreak(){
-  var act=getAct();var set={};
-  act.forEach(function(x){set[x.d]=true;});
-  var d=new Date(),streak=0;
-  function fmt(dd){var p=function(n){return String(n).padStart(2,'0');};return dd.getFullYear()+'-'+p(dd.getMonth()+1)+'-'+p(dd.getDate());}
-  if(!set[fmt(d)]){d.setDate(d.getDate()-1);}
-  while(set[fmt(d)]){streak++;d.setDate(d.getDate()-1);}
-  return streak;
-}
-function $(id){return document.getElementById(id);}
-function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+﻿/* =====================================================
+   错题星 · 应用逻辑
+   产品概念：红笔批改 × 学习诊断报告
+   AI 能力由 ai.js 提供（可替换为真实 API）
+   ===================================================== */
+(function () {
+  'use strict';
 
-/* ===================== 工具 ===================== */
-function toast(msg,type){
-  var el=document.createElement('div');el.className='toast '+(type||'');el.textContent=msg;
-  document.body.appendChild(el);
-  requestAnimationFrame(function(){el.classList.add('show');});
-  setTimeout(function(){el.classList.remove('show');setTimeout(function(){el.remove();},320);},2600);
-}
-function allTopics(){
-  var arr=[];
-  Object.keys(KB).forEach(function(sub){
-    KB[sub].topics.forEach(function(t){arr.push({sub:sub,topic:t});});
-  });
-  return arr;
-}
-function findTopic(sub,id){
-  var s=KB[sub];if(!s)return null;
-  for(var i=0;i<s.topics.length;i++){if(s.topics[i].id===id)return s.topics[i];}
-  return null;
-}
-function getTopicState(sub,id){
-  var st=getStats();if(!st[sub])st[sub]={};if(!st[sub][id])st[sub][id]={};
-  return st[sub][id];
-}
-function topicMastered(sub,topic){
-  var ts=getTopicState(sub,topic.id);var n=topic.questions.length;var m=0;
-  topic.questions.forEach(function(q,i){if(ts['q'+i]&&ts['q'+i].c>0)m++;});
-  return {mastered:m,total:n};
-}
-function totalStats(){
-  var st=getStats();var attempts=0,correct=0,masteredTopics=0,totalTopics=0;
-  allTopics().forEach(function(o){
-    totalTopics++;
-    var tm=topicMastered(o.sub,o.topic);
-    if(tm.mastered===tm.total&&tm.total>0)masteredTopics++;
-    var ts=st[o.sub]&&st[o.sub][o.topic.id]||{};
-    Object.keys(ts).forEach(function(k){
-      if(k[0]==='q'){attempts+=ts[k].a;correct+=ts[k].c;}
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var q = function (id) { return APP.questions.filter(function (x) { return x.id === id; })[0]; };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
-  });
-  return {attempts:attempts,correct:correct,rate:attempts?(correct/attempts*100):0,masteredTopics:masteredTopics,totalTopics:totalTopics,col:getCol().length};
-}
+  };
 
-/* ===================== 视图切换 ===================== */
-var VIEWS=['viewDashboard','viewLibrary','viewDetail','viewQuiz','viewCollection','viewRecognize'];
-var NAVMAP={viewDashboard:'navDashBtn',viewLibrary:'navLibBtn',viewCollection:'navColBtn',viewRecognize:'navRecBtn'};
-function showView(id){
-  VIEWS.forEach(function(v){$(v).classList.toggle('active',v===id);});
-  ['navDashBtn','navLibBtn','navColBtn'].forEach(function(n){$(n).classList.toggle('active',false);});
-  if(NAVMAP[id])$(NAVMAP[id]).classList.add('active');
-  window.scrollTo({top:0,behavior:'smooth'});
-}
+  var IC = {
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+    camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.2"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+    arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m5 13 4 4L19 7"/></svg>',
+    close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+    bulb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3 11v2h6v-2a6 6 0 0 0-3-11z"/></svg>',
+    book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 4.5v15"/></svg>',
+    target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>',
+    calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+    chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+    flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3s5 4 5 9a5 5 0 0 1-10 0c0-2 1-3 1-3s1 1 2 1c0-3 2-5 2-7z"/></svg>',
+    medal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="14" r="5"/><path d="m8 9-3-6h6l1 3 1-3h6l-3 6"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>',
+    file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg>'
+  };
 
-/* ===================== 看板 ===================== */
-function renderDashboard(){
-  var t=totalStats();
-  $('dashAttempts').innerHTML=esc(t.attempts);
-  $('dashRate').innerHTML=esc(t.rate.toFixed(0))+'<em>%</em>';
-  $('dashMastered').innerHTML=esc(t.masteredTopics)+'<em>/'+t.totalTopics+'</em>';
-  $('dashCol').innerHTML=esc(t.col);
-  // 今日已练
-  var act=getAct(),today=todayStr(),todayN=0;
-  act.forEach(function(a){if(a.d===today)todayN+=a.n;});
-  $('dashToday').innerHTML=esc(todayN);
-  $('dashStreak').innerHTML=esc(calcStreak());
-  // 最近练习
-  var recent=act.slice(0,8).reverse();
-  var box=$('dashRecent');
-  if(!recent.length){box.innerHTML='<p style="color:var(--muted);font-size:14.5px">还没有练习记录。点下方按钮，从「氧化还原反应」或「细胞呼吸」开始第一组训练吧。</p>';}
-  else{
-    box.innerHTML='';
-    recent.forEach(function(a){
-      var row=document.createElement('div');row.className='topic-row';
-      var s=KB[a.sub]?KB[a.sub].name:a.sub;
-      row.innerHTML='<span class="tr-name">'+esc(a.name)+'</span><span class="tr-meta">'+esc(a.d)+' · '+a.n+'题 · 对'+a.c+'</span>';
-      box.appendChild(row);
+  var MASTERY = {
+    weak: { label: '待巩固', cls: 'weak' },
+    learning: { label: '复习中', cls: 'learning' },
+    mastered: { label: '已掌握', cls: 'mastered' }
+  };
+  var TITLES = { dashboard: '今日', mistakes: '错题本', mistake: '诊断报告', practice: '专项训练', review: '复习计划', report: '学习报告' };
+
+  var state = {
+    page: 'dashboard', mistakeId: null,
+    subject: '全部', status: 'all', keyword: '',
+    practiceId: null, practiceIdx: 0, revealed: false,
+    reviewDone: {}, reviewRevealed: {},
+    upload: { step: 'pick', qid: null, stage: 0, fileName: '', recognized: '' }
+  };
+
+  /* ---------- 本地持久化（让操作真的被记住） ---------- */
+  function saveState() {
+    try {
+      localStorage.setItem('cuotixing:v1', JSON.stringify({
+        mastery: APP.questions.map(function (x) { return { id: x.id, mastery: x.mastery, stars: x.stars, due: x.due }; }),
+        reviewDone: state.reviewDone
+      }));
+    } catch (e) {}
+  }
+  function loadState() {
+    try {
+      var raw = localStorage.getItem('cuotixing:v1');
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      (d.mastery || []).forEach(function (m) {
+        var item = q(m.id);
+        if (item) { item.mastery = m.mastery; item.stars = m.stars; item.due = m.due; }
+      });
+      state.reviewDone = d.reviewDone || {};
+    } catch (e) {}
+  }
+
+  /* ---------- 小组件 ---------- */
+  function toast(msg) {
+    var wrap = $('#toastWrap');
+    var t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    wrap.appendChild(t);
+    requestAnimationFrame(function () { t.classList.add('show'); });
+    setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 280); }, 2400);
+  }
+
+  function masteryBadge(m) {
+    var d = MASTERY[m] || MASTERY.learning;
+    return '<span class="m-badge ' + d.cls + '">' + d.label + '</span>';
+  }
+
+  function stars(n) {
+    var out = '';
+    for (var i = 1; i <= 5; i++) { out += '<span class="' + (i <= n ? 'on' : 'off') + '">★</span>'; }
+    return '<span class="stars" title="掌握度 ' + n + '/5">' + out + '</span>';
+  }
+
+  function ring(pct) {
+    var r = 26, c = 2 * Math.PI * r, off = c * (1 - pct / 100);
+    return '<svg class="ring" viewBox="0 0 64 64" aria-label="置信度 ' + pct + '%">' +
+      '<circle cx="32" cy="32" r="' + r + '" class="ring-bg"></circle>' +
+      '<circle cx="32" cy="32" r="' + r + '" class="ring-fg" style="stroke-dasharray:' + c.toFixed(1) + ';stroke-dashoffset:' + off.toFixed(1) + '"></circle>' +
+      '<text x="32" y="37" text-anchor="middle" class="ring-t">' + pct + '%</text></svg>';
+  }
+
+  function errorChips(item) {
+    return item.errors.map(function (e) {
+      var cls = e.conf >= 70 ? 'red' : (e.conf >= 45 ? 'amber' : 'blue');
+      return '<span class="chip chip-' + cls + '">' + esc(e.name) + '<b>' + e.conf + '%</b></span>';
+    }).join('');
+  }
+
+  function kpTree(item) {
+    return (item.kps || []).map(function (k) {
+      var cls = k.rate >= 70 ? 'high' : (k.rate >= 50 ? 'mid' : 'low');
+      return '<div class="kpb-row' + (k.main ? ' main' : '') + '">' +
+        '<div class="kpb-top"><span class="kpb-path"><i>' + esc(k.l1) + '</i> › ' + esc(k.l2) + '</span>' +
+        (k.main ? '<span class="kpb-main-tag">主因</span>' : '') + '</div>' +
+        '<div class="kpb-bar"><span class="' + cls + '" style="width:' + k.rate + '%"></span></div>' +
+        '<div class="kpb-meta">错误率 ' + k.rate + '%</div></div>';
+    }).join('');
+  }
+
+  function vulnRows(item) {
+    return item.vulns.map(function (v) {
+      var sevTxt = { high: '高', mid: '中', low: '低' }[v.sev];
+      return '<div class="vuln-row">' +
+        '<div class="vuln-top"><span>' + esc(v.name) + '</span><span class="sev ' + v.sev + '">' + sevTxt + '</span></div>' +
+        '<div class="vuln-bar"><span class="vuln-fill ' + v.sev + '" style="width:' + v.rate + '%"></span></div>' +
+        '<div class="vuln-meta">错误率 ' + v.rate + '%</div>' +
+        '<p class="vuln-desc">' + esc(v.desc) + '</p></div>';
+    }).join('');
+  }
+
+  function questionCard(item) {
+    return '<a class="q-card" href="#/mistake/' + item.id + '">' +
+      '<div class="q-card-top"><span class="q-subject">' + esc(item.subject) + '</span>' + masteryBadge(item.mastery) + '</div>' +
+      '<h3>' + esc(item.kp) + ' ' + stars(item.stars) + '</h3>' +
+      '<p class="q-excerpt">' + esc(item.question) + '</p>' +
+      '<div class="q-card-foot"><span class="q-tags">' + item.tags.slice(1).map(function (t) { return '<span class="tag-mini">' + esc(t) + '</span>'; }).join('') + '</span>' +
+      '<span class="q-date">' + esc(item.addedAt) + '</span></div></a>';
+  }
+
+  /* ---------- 图表（纯 SVG） ---------- */
+  function lineChart(points, color, unit) {
+    var W = 520, H = 200, padL = 36, padR = 18, padT = 18, padB = 30;
+    var max = Math.max.apply(null, points.map(function (p) { return p.value; }));
+    var min = Math.min.apply(null, points.map(function (p) { return p.value; }));
+    var lo = Math.max(0, Math.floor((min - 8) / 10) * 10), hi = Math.ceil((max + 6) / 10) * 10;
+    var x = function (i) { return padL + (W - padL - padR) * (points.length === 1 ? 0.5 : i / (points.length - 1)); };
+    var y = function (v) { return padT + (H - padT - padB) * (1 - (v - lo) / (hi - lo || 1)); };
+    var line = points.map(function (p, i) { return x(i) + ',' + y(p.value); }).join(' ');
+    var area = padL + ',' + (H - padB) + ' ' + line + ' ' + x(points.length - 1) + ',' + (H - padB);
+    var s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img">';
+    s += '<defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + color + '" stop-opacity=".22"/><stop offset="1" stop-color="' + color + '" stop-opacity="0"/></linearGradient></defs>';
+    for (var g = 0; g <= 3; g++) {
+      var gy = padT + (H - padT - padB) * (g / 3);
+      s += '<line class="chart-grid" x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '"/>';
+      s += '<text class="chart-label" x="' + (padL - 6) + '" y="' + (gy + 4) + '" text-anchor="end">' + (hi - (hi - lo) * g / 3).toFixed(0) + '</text>';
+    }
+    s += '<polygon points="' + area + '" fill="url(#areaGrad)"/>';
+    s += '<polyline points="' + line + '" fill="none" stroke="' + color + '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';
+    points.forEach(function (p, i) {
+      s += '<circle cx="' + x(i) + '" cy="' + y(p.value) + '" r="4.5" fill="#fff" stroke="' + color + '" stroke-width="2.5"/>';
+      s += '<text class="chart-value" x="' + x(i) + '" y="' + (y(p.value) - 10) + '" text-anchor="middle">' + p.value + (unit || '') + '</text>';
+      s += '<text class="chart-label" x="' + x(i) + '" y="' + (H - 10) + '" text-anchor="middle">' + esc(p.label) + '</text>';
+    });
+    return s + '</svg>';
+  }
+
+  function barChart(points) {
+    var W = 520, H = 190, padL = 34, padR = 16, padT = 16, padB = 30;
+    var max = Math.max.apply(null, points.map(function (p) { return p.value; })) || 1;
+    var bw = (W - padL - padR) / points.length * 0.52;
+    var s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img"><defs><linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2F6BFF"/><stop offset="1" stop-color="#8FB4FF"/></linearGradient></defs>';
+    for (var g = 0; g <= 2; g++) {
+      var gy = padT + (H - padT - padB) * (g / 2);
+      s += '<line class="chart-grid" x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '"/>';
+    }
+    points.forEach(function (p, i) {
+      var cx = padL + (W - padL - padR) * (i + 0.5) / points.length;
+      var h = (H - padT - padB) * (p.value / max);
+      s += '<rect x="' + (cx - bw / 2) + '" y="' + (H - padB - h) + '" width="' + bw + '" height="' + Math.max(h, 2) + '" rx="6" fill="url(#barGrad)"/>';
+      if (p.value > 0) s += '<text class="chart-value" x="' + cx + '" y="' + (H - padB - h - 6) + '" text-anchor="middle">' + p.value + '</text>';
+      s += '<text class="chart-label" x="' + cx + '" y="' + (H - 10) + '" text-anchor="middle">' + esc(p.label) + '</text>';
+    });
+    return s + '</svg>';
+  }
+
+  /* ---------- 路由 ---------- */
+  function route() {
+    var hash = location.hash || '#/dashboard';
+    var parts = hash.replace(/^#\/?/, '').split('/');
+    var page = parts[0] || 'dashboard';
+    state.page = page;
+    if (page === 'mistake') { state.mistakeId = parts[1]; renderDetail(parts[1]); }
+    else if (page === 'mistakes') { renderMistakes(); }
+    else if (page === 'practice') { state.practiceId = parts[1] || null; renderPractice(); }
+    else if (page === 'review') { renderReview(); }
+    else if (page === 'report') { renderReport(); }
+    else { renderDashboard(); }
+    updateChrome();
+    window.scrollTo(0, 0);
+  }
+
+  function updateChrome() {
+    $('#topTitle').textContent = TITLES[state.page] || '今日';
+    $('#navCount').textContent = APP.questions.length;
+    $$('[data-nav]').forEach(function (a) {
+      var key = a.getAttribute('data-nav');
+      a.classList.toggle('active', key === state.page || (state.page === 'mistake' && key === 'mistakes'));
     });
   }
-}
-function quickStart(sub,id){
-  var t=findTopic(sub,id);if(!t)return;
-  startQuiz(sub,t,t.questions.slice());
-}
+﻿
+  /* ---------- 今日工作台 ---------- */
+  function renderDashboard() {
+    var hour = new Date().getHours();
+    var greet = hour < 6 ? '夜深了' : (hour < 12 ? '早上好' : (hour < 18 ? '下午好' : '晚上好'));
+    var due = APP.questions.filter(function (x) { return x.due === '今天'; });
+    var weak = APP.questions.filter(function (x) { return x.mastery === 'weak'; });
+    var mastered = APP.questions.filter(function (x) { return x.mastery === 'mastered'; }).length;
+    var recent = APP.questions.slice().sort(function (a, b) { return a.addedAt < b.addedAt ? 1 : -1; });
 
-/* ===================== 知识库 ===================== */
-var curSubject='chemistry';
-function renderLibrary(){
-  $('subjectTabs').innerHTML='';
-  Object.keys(KB).forEach(function(sub){
-    var b=document.createElement('button');b.className='subject-tab'+(sub===curSubject?' active':'');
-    b.textContent=KB[sub].icon+' '+KB[sub].name;
-    b.onclick=function(){curSubject=sub;renderLibrary();};
-    $('subjectTabs').appendChild(b);
-  });
-  var grid=$('kpGrid');grid.innerHTML='';
-  KB[curSubject].topics.forEach(function(t){
-    var tm=topicMastered(curSubject,t);
-    var pct=tm.total?Math.round(tm.mastered/tm.total*100):0;
-    var card=document.createElement('div');card.className='kp-card';
-    card.innerHTML='<div class="kp-name">'+esc(t.name)+'</div>'+
-      '<div class="kp-meta">难度：'+esc(t.level)+' · '+t.questions.length+'道训练题</div>'+
-      '<div class="kp-progress"><i style="width:'+pct+'%"></i></div>'+
-      '<div class="kp-progress-txt">掌握度 '+pct+'%'+(pct===100?' ✓ 已掌握':'')+'</div>';
-    card.onclick=function(){renderDetail(curSubject,t.id);};
-    grid.appendChild(card);
-  });
-}
-function renderDetail(sub,id){
-  var t=findTopic(sub,id);if(!t){return;}
-  var s=KB[sub];
-  $('detailSubject').textContent=s.icon+' '+s.name;
-  $('detailName').textContent=t.name;
-  $('detailLevel').textContent='难度：'+t.level;
-  var blocks='';
-  blocks+='<div class="detail-block"><h3><span class="ic">📖</span>概念讲解</h3><p>'+esc(t.concept)+'</p></div>';
-  blocks+='<div class="detail-block"><h3><span class="ic">🔑</span>核心要点</h3><ul>'+t.points.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>';
-  blocks+='<div class="detail-block"><h3><span class="ic">⚠️</span>易错提醒</h3><ul class="pitfall-list">'+t.pitfalls.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>';
-  blocks+='<div class="detail-block"><h3><span class="ic">🎯</span>常见考法</h3><div class="focus-tags">'+t.foci.map(function(x){return '<span>'+esc(x)+'</span>';}).join('')+'</div></div>';
-  $('detailBlocks').innerHTML=blocks;
-  $('detailTrainBtn').onclick=function(){startQuiz(sub,t,t.questions.slice());};
-  showView('viewDetail');
-}
+    var html =
+      '<div class="page-head"><div><h1>' + greet + '，' + esc(APP.user.name) + '</h1><p>' + (due.length ? '今天有 <b>' + due.length + '</b> 个知识点需要复习，继续保持。' : '今天的复习已完成，做得不错。') + '</p></div>' +
+      '<button class="btn btn-primary" data-action="upload">' + IC.camera + ' 拍照诊断</button></div>' +
 
-/* ===================== 训练引擎 ===================== */
-var quiz={list:[],idx:0,correct:0,answers:[],sub:null,topic:null};
-function startQuiz(sub,topic,questions,fromCol){
-  quiz={list:questions.map(function(q){return q;}),idx:0,correct:0,answers:[],sub:sub,topic:topic,fromCol:fromCol||null};
-  $('quizTitle').textContent=(fromCol?'错题重做 · ':'训练 · ')+topic.name;
-  $('quizTotal').textContent=quiz.list.length;
-  showView('viewQuiz');
-  renderQuestion();
-}
-function renderQuestion(){
-  var q=quiz.list[quiz.idx];
-  $('quizProgress').style.width=((quiz.idx)/quiz.list.length*100)+'%';
-  $('quizCur').textContent=quiz.idx+1;
-  $('qText').innerHTML=esc(q.q);
-  var opts=$('qOptions');opts.innerHTML='';
-  q.options.forEach(function(o,oi){
-    var b=document.createElement('button');b.className='option';b.innerHTML='<b>'+String.fromCharCode(65+oi)+'.</b> '+esc(o);
-    b.onclick=function(){answer(oi);};
-    opts.appendChild(b);
-  });
-  var fb=$('qFeedback');fb.className='feedback';fb.innerHTML='';
-  var nxt=$('qNextBtn');nxt.style.display='none';
-}
-function answer(oi){
-  var q=quiz.list[quiz.idx];
-  var opts=$('qOptions').children;
-  for(var i=0;i<opts.length;i++){opts[i].disabled=true;}
-  opts[oi].classList.add(oi===q.answer?'correct':'wrong');
-  opts[q.answer].classList.add('correct');
-  var isCorrect=(oi===q.answer);
-  if(isCorrect)quiz.correct++;
-  quiz.answers.push({q:q,chosen:oi,correct:isCorrect});
-  // 记录统计
-  var ts=getTopicState(quiz.sub,quiz.topic.id);
-  var key='q'+quiz.idx;
-  if(!ts[key])ts[key]={a:0,c:0};
-  ts[key].a++;
-  if(isCorrect)ts[key].c++;
-  saveStats();
-  var act=getAct();
-  var today=todayStr();
-  if(act.length&&act[0].d===today){act[0].n++;act[0].c+=isCorrect?1:0;}
-  else{act.unshift({d:today,n:1,c:isCorrect?1:0});}
-  if(act.length>30)act.length=30;
-  lsSet(LS_ACT,act);
-  var fb=$('qFeedback');
-  fb.className='feedback '+(isCorrect?'correct':'wrong');
-  fb.innerHTML='<span class="fb-tag">'+(isCorrect?'✅ 回答正确':'❌ 回答错误')+'</span>'+esc(q.explain);
-  var nxt=$('qNextBtn');nxt.style.display='inline-flex';
-  nxt.textContent=(quiz.idx===quiz.list.length-1)?'查看结果 🎯':'下一题 →';
-}
-function saveStats(){lsSet(LS_STATS,getStats());}
-function nextQuestion(){
-  quiz.idx++;
-  if(quiz.idx>=quiz.list.length){renderResult();return;}
-  renderQuestion();
-}
-function renderResult(){
-  var total=quiz.list.length,correct=quiz.correct,rate=Math.round(correct/total*100);
-  var wrongs=quiz.answers.filter(function(a){return !a.correct;});
-  // 错题进错题集
-  wrongs.forEach(function(a){
-    var col=getCol();
-    col.unshift({id:'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),sub:quiz.sub,topicId:quiz.topic.id,topicName:quiz.topic.name,q:a.q.q,options:a.q.options,answer:a.q.answer,chosen:a.chosen,explain:a.q.explain,date:todayStr(),status:'open'});
-    if(col.length>60)col.length=60;
-    lsSet(LS_COL,col);
-  });
-  updateBadges();
-  var mark=rate>=80?'🏆':(rate>=60?'👍':'💪');
-  $('resultScore').innerHTML=esc(rate)+'<em>%</em>';
-  $('resultMark').textContent=mark;
-  $('resultSub').textContent='共 '+total+' 题 · 答对 '+correct+' 题'+(wrongs.length?(' · 新增 '+wrongs.length+' 道错题到错题集'):' · 全部正确，太棒了！');
-  var list=$('resultList');list.innerHTML='';
-  quiz.answers.forEach(function(a,i){
-    var item=document.createElement('div');item.className='result-item';
-    item.innerHTML='<span class="ri-mark">'+(a.correct?'✅':'❌')+'</span><span class="ri-q">'+(i+1)+'. '+esc(a.q.q)+'</span>';
-    list.appendChild(item);
-  });
-  $('resultRetryBtn').onclick=function(){startQuiz(quiz.sub,quiz.topic,quiz.list.slice());};
-  $('resultBackBtn').onclick=function(){renderDetail(quiz.sub,quiz.topic.id);};
-  $('resultDashBtn').onclick=function(){renderDashboard();showView('viewDashboard');};
-  $('resultColBtn').onclick=function(){renderCollection();showView('viewCollection');};
-  showView('viewQuiz');
-  $('qCard').style.display='none';
-  $('resultCard').style.display='block';
-}
-function backToTopic(){
-  if(quiz.topic){renderDetail(quiz.sub,quiz.topic.id);}
-  else{renderLibrary();showView('viewLibrary');}
-}
+      '<div class="scan-hero" data-action="upload">' +
+        '<div class="sh-left"><div class="sh-icon">' + IC.camera + '</div>' +
+        '<div><h2>拍下错题，让 AI 帮你诊断</h2><p>识别题目 → 拆解知识点 → 定位错因 → 生成同类题，一次完成。</p></div></div>' +
+        '<span class="sh-go">开始诊断 →</span>' +
+      '</div>' +
 
-/* ===================== 错题集 ===================== */
-function updateBadges(){
-  var n=getCol().length;
-  $('colBadge').textContent=n;
-  $('colBadge2').textContent=n;
-}
-function renderCollection(){
-  updateBadges();
-  var col=getCol(),list=$('colList');
-  if(!col.length){list.innerHTML='<div class="empty-state">📭 还没有错题。<br><br>去知识库选一个知识点开始训练，做错的题会自动收录到这里。</div>';$('colClearBtn').style.display='none';return;}
-  $('colClearBtn').style.display='inline-flex';
-  list.innerHTML='';
-  col.forEach(function(c){
-    var s=KB[c.sub]?KB[c.sub].name:c.sub;
-    var item=document.createElement('div');item.className='col-item';
-    var chosenTxt=(c.type==='open')?c.student:(c.options&&c.options[c.chosen]||'');
-    var answerTxt=(c.type==='open')?c.answer:(c.options&&c.options[c.answer]||'');
-    item.innerHTML='<div class="ci-top"><span class="ci-tag">'+esc(s)+' · '+esc(c.topicName)+'</span><span class="ci-date">'+esc(c.date)+'</span></div>'+
-      '<div class="ci-q">'+esc(c.q)+'</div>'+
-      '<div class="ci-a">你的答案：<b style="color:var(--danger)">'+esc(chosenTxt)+'</b> ｜ 正确答案：<b style="color:var(--ok)">'+esc(answerTxt)+'</b></div>'+
-      (c.kps&&c.kps.length?('<div class="ci-tag" style="margin-left:8px">知识点：'+esc(c.kps.join(' / '))+'</div>'):'')+
-      '<div class="ci-actions">'+
-        '<button class="btn outline sm" data-act="redo">🔄 重做</button>'+
-        '<button class="btn sm" data-act="master">✅ 已掌握</button>'+
-        '<button class="btn danger sm" data-act="del">🗑️ 删除</button>'+
-      '</div>';
-    var redo=item.querySelector('[data-act=redo]');
-    if(c.type==='open'){redo.style.display='none';}
-    redo.onclick=function(){
-      var t=findTopic(c.sub,c.topicId);
-      var q=null;
-      if(t){t.questions.forEach(function(x){if(x.q===c.q)q=x;});}
-      if(q){startQuiz(c.sub,t||{id:c.topicId,name:c.topicName,questions:[]},[q],true);}
-      else{toast('该题未找到，请重新训练','error');}
-    };
-    var master=item.querySelector('[data-act=master]');
-    master.onclick=function(){
-      var col2=getCol().filter(function(x){return x.id!==c.id;});
-      lsSet(LS_COL,col2);renderCollection();toast('标记为已掌握，已移出错题集','success');
-    };
-    var del=item.querySelector('[data-act=del]');
-    del.onclick=function(){
-      var col2=getCol().filter(function(x){return x.id!==c.id;});
-      lsSet(LS_COL,col2);renderCollection();toast('已删除','');
-    };
-    list.appendChild(item);
-  });
-}
-function clearAll(){
-  if(!getCol().length)return;
-  if(confirm('确定清空全部错题？此操作不可恢复。')){lsSet(LS_COL,[]);renderCollection();toast('已清空','');}
-}
+      '<div class="quick-grid">' +
+        '<a class="quick-tile" href="#/mistakes"><span class="qt-ic blue">' + IC.book + '</span><span><b>错题本</b><small>' + APP.questions.length + ' 道错题</small></span></a>' +
+        '<a class="quick-tile" href="#/practice"><span class="qt-ic orange">' + IC.target + '</span><span><b>专项训练</b><small>' + (APP.questions.length * 3) + ' 道变式题</small></span></a>' +
+        '<a class="quick-tile" href="#/review"><span class="qt-ic green">' + IC.calendar + '</span><span><b>复习计划</b><small>今日 ' + due.length + ' 个</small></span></a>' +
+        '<a class="quick-tile" href="#/report"><span class="qt-ic purple">' + IC.chart + '</span><span><b>学习报告</b><small>掌握度趋势</small></span></a>' +
+      '</div>' +
+      '<div class="stat-grid">' +
+        '<div class="stat-card"><div class="stat-l">今日待复习</div><div class="stat-v">' + due.length + '<em>个</em></div><div class="stat-s warn">按遗忘曲线安排</div></div>' +
+        '<div class="stat-card"><div class="stat-l">待巩固知识点</div><div class="stat-v">' + weak.length + '<em>个</em></div><div class="stat-s warn">优先处理</div></div>' +
+        '<div class="stat-card"><div class="stat-l">错题总数</div><div class="stat-v">' + APP.questions.length + '<em>道</em></div><div class="stat-s up">本周新增 3 道</div></div>' +
+        '<div class="stat-card"><div class="stat-l">连续学习</div><div class="stat-v">' + APP.user.streak + '<em>天</em></div><div class="stat-s ok">保持住</div></div>' +
+      '</div>' +
 
-/* ===================== AI 无限生成（可选） ===================== */
-function getApiCfg(){
-  return {key:(localStorage.getItem(LS_KEY)||'').trim(),base:(localStorage.getItem(LS_BASE)||'https://api.deepseek.com').trim().replace(/\/+$/,''),model:(localStorage.getItem(LS_MODEL)||'deepseek-chat').trim()};
-}
-function callAI(messages){
-  var cfg=getApiCfg();
-  if(!cfg.key)return Promise.reject(new Error('nokey'));
-  return fetch(cfg.base+'/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.key},body:JSON.stringify({model:cfg.model,messages:messages,temperature:0.7,max_tokens:2048})})
-    .then(function(r){if(!r.ok)return r.json().then(function(j){throw new Error('API '+r.status+(j&&j.error&&j.error.message?(': '+j.error.message):''));});return r.json();})
-    .then(function(j){var c=j&&j.choices&&j.choices[0]&&j.choices[0].message?j.choices[0].message.content:'';if(!c)throw new Error('AI 未返回内容');return c;});
-}
-function aiGenerate(){
-  var kp=$('aiKpInput').value.trim();
-  if(!kp){toast('请输入知识点','error');return;}
-  var btn=$('aiGenBtn');btn.disabled=true;var old=btn.textContent;btn.textContent='AI 生成中…';
-  var prompt='你是一位资深高中理科教师。请把知识点「'+kp+'」拆解为：概念、核心要点、易错点、常见考法，并生成3道选择题（含答案与解析）。按以下 JSON 输出：{"concept":"...","points":["..."],"pitfalls":["..."],"foci":["..."],"questions":[{"q":"...","options":["A.","B.","C.","D."],"answer":0,"explain":"..."}]}';
-  callAI([{role:'user',content:prompt}]).then(function(content){
-    var data=null;
-    try{data=JSON.parse(content.replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim());}catch(e){}
-    if(!data||!data.questions){throw new Error('AI 返回格式异常');}
-    $('aiResult').innerHTML='<div class="detail-block"><h3>🧩 '+esc(kp)+'</h3><p>'+esc(data.concept||'')+'</p></div>'+
-      '<div class="detail-block"><h3>🔑 核心要点</h3><ul>'+(data.points||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>'+
-      '<div class="detail-block"><h3>⚠️ 易错提醒</h3><ul>'+(data.pitfalls||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>';
-    var qh='';
-    data.questions.forEach(function(qq,i){
-      qh+='<div class="detail-block"><h3>📝 训练题 '+(i+1)+'</h3><p style="font-weight:600">'+esc(qq.q)+'</p><ul>'+(qq.options||[]).map(function(o){return '<li>'+esc(o)+'</li>';}).join('')+'</ul><p style="color:var(--ok);margin-top:8px"><b>答案：</b>'+esc(String.fromCharCode(65+(qq.answer||0)))+'</p><p style="margin-top:6px"><b>解析：</b>'+esc(qq.explain||'')+'</p></div>';
+      '<div class="two-col">' +
+        '<section class="panel"><div class="panel-head"><h2>今日复习</h2><a class="panel-link" href="#/review">全部计划 →</a></div>' +
+          (due.length ? due.map(function (x) {
+            return '<div class="review-row" data-action="go" data-href="#/mistake/' + x.id + '">' +
+              '<div><div class="rr-kp">' + esc(x.kp) + '</div><div class="rr-sub">' + esc(x.subject) + ' · ' + esc(x.due) + '复习</div></div>' +
+              '<span class="rr-go">去复习 →</span></div>';
+          }).join('') : '<div class="empty-mini">今天没有待复习的错题 🎉</div>') +
+        '</section>' +
+        '<section class="panel"><div class="panel-head"><h2>知识点漏洞 TOP3</h2><a class="panel-link" href="#/mistakes">查看错题 →</a></div>' +
+          APP.questions.filter(function (x) { return x.mastery !== 'mastered'; }).slice(0, 4).map(function (x) {
+            var top = x.vulns[0];
+            return '<div class="weak-row" data-action="go" data-href="#/mistake/' + x.id + '">' +
+              '<div class="weak-top"><span>' + esc(top.name) + '</span><b>' + top.rate + '%</b></div>' +
+              '<div class="weak-bar"><span style="width:' + top.rate + '%"></span></div></div>';
+          }).join('') +
+        '</section>' +
+      '</div>' +
+
+      '<section class="panel"><div class="panel-head"><h2>最近错题</h2><a class="panel-link" href="#/mistakes">进入错题本 →</a></div>' +
+        '<div class="q-list">' + recent.slice(0, 3).map(questionCard).join('') + '</div></section>';
+
+    $('#view').innerHTML = html;
+  }
+
+  /* ---------- 错题本 ---------- */
+  function renderMistakes() {
+    var list = APP.questions.filter(function (x) {
+      if (state.subject !== '全部' && x.subject !== state.subject) return false;
+      if (state.status !== 'all' && x.mastery !== state.status) return false;
+      if (state.keyword) {
+        var k = state.keyword.toLowerCase();
+        if ((x.kp + x.question + x.tags.join('')).toLowerCase().indexOf(k) < 0) return false;
+      }
+      return true;
     });
-    $('aiResult').innerHTML+=qh;
-    toast('AI 生成成功','success');
-  }).catch(function(err){
-    $('aiResult').innerHTML='';
-    if(err.message==='nokey'){toast('未配置 API Key，请先使用内置知识库','error');}
-    else{toast('生成失败：'+err.message,'error');}
-  }).finally(function(){btn.disabled=false;btn.textContent=old;});
-}
+    var html =
+      '<div class="page-head"><div><h1>错题本</h1><p>共 ' + APP.questions.length + ' 道错题，按知识点归档、按掌握度复习。</p></div>' +
+      '<button class="btn btn-primary" data-action="upload">' + IC.camera + ' 拍照诊断</button></div>' +
+      '<div class="toolbar">' +
+        '<div class="search-inline">' + IC.search + '<input id="mistakeSearch" placeholder="搜索题目、知识点…" value="' + esc(state.keyword) + '"></div>' +
+        '<div class="seg">' + APP.subjects.map(function (s) { return '<button class="seg-btn' + (state.subject === s ? ' on' : '') + '" data-subject="' + s + '">' + s + '</button>'; }).join('') + '</div>' +
+        '<div class="seg">' + APP.filters.map(function (f) { return '<button class="seg-btn' + (state.status === f.key ? ' on' : '') + '" data-status="' + f.key + '">' + f.label + '</button>'; }).join('') + '</div>' +
+      '</div>' +
+      (list.length ? '<div class="q-list">' + list.map(questionCard).join('') + '</div>'
+        : '<div class="empty-state">' + IC.search + '<h3>没有找到匹配的错题</h3><p>换个关键词，或切换筛选条件试试。</p></div>');
+    $('#view').innerHTML = html;
+  }
 
-/* ===================== 设置 ===================== */
-function openSettings(){
-  $('apiKeyInput').value=localStorage.getItem(LS_KEY)||'';
-  $('apiBaseInput').value=localStorage.getItem(LS_BASE)||'https://api.deepseek.com';
-  $('modelInput').value=localStorage.getItem(LS_MODEL)||'deepseek-chat';
-  $('settingsModal').classList.add('show');
-}
-function saveSettings(){
-  localStorage.setItem(LS_KEY,$('apiKeyInput').value.trim());
-  localStorage.setItem(LS_BASE,$('apiBaseInput').value.trim());
-  localStorage.setItem(LS_MODEL,$('modelInput').value.trim());
-  $('settingsModal').classList.remove('show');
-  toast('设置已保存','success');
-}
+  /* ---------- 诊断报告（核心页） ---------- */
+  function renderDetail(id) {
+    var item = q(id);
+    if (!item) { location.hash = '#/mistakes'; return; }
+    var top = item.errors[0];
+    var ansEsc = esc(item.myAnswer);
+    var markEsc = esc(item.penMark);
+    var marked = (markEsc && ansEsc.indexOf(markEsc) >= 0)
+      ? ansEsc.replace(markEsc, '<span class="pen-mark">' + markEsc + '</span>')
+      : '<span class="pen-mark">' + ansEsc + '</span>';
 
-/* ===================== 错题识别 ===================== */
-var recImageStore=null;
-var KP_KEYWORDS={
-  'chem-oxidation':['氧化还原','氧化剂','还原剂','化合价','电子转移','歧化','归中','氧化产物'],
-  'chem-ions':['离子共存','离子方程式','离子反应','沉淀','电解质','弱电解质'],
-  'chem-equilibrium':['化学平衡','平衡移动','勒夏特列','平衡常数','转化率','可逆'],
-  'chem-mole':['物质的量','阿伏伽德罗','摩尔','摩尔质量','标况','气体体积','NA'],
-  'chem-electro':['原电池','电解','电极','负极','正极','阴极','阳极','燃料电池'],
-  'chem-periodic':['元素周期','原子半径','金属性','非金属性','最高价','同周期','同主族'],
-  'bio-respiration':['细胞呼吸','有氧呼吸','无氧呼吸','线粒体','ATP','呼吸作用','丙酮酸'],
-  'bio-photosynthesis':['光合作用','光反应','暗反应','叶绿体','光解','暗反应','C5'],
-  'bio-genetics':['孟德尔','遗传','基因型','表现型','分离定律','自由组合','显性','隐性','杂交','测交'],
-  'bio-dna':['DNA','碱基','复制','双螺旋','嘌呤','嘧啶','半保留'],
-  'bio-gene-expr':['转录','翻译','密码子','mRNA','tRNA','基因表达','核糖体','氨基酸'],
-  'bio-neuron':['神经','突触','反射弧','电位','神经递质','静息','动作电位'],
-  'bio-homeostasis':['内环境','稳态','血浆','组织液','淋巴','渗透压','调节']
-};
-function renderRecognize(){
-  $('recImageInput').value='';
-  $('recPreviewWrap').classList.remove('show');
-  $('recResultCard').style.display='none';
-  $('recQuestion').value='';$('recStudent').value='';$('recCorrect').value='';$('recKpManual').value='';
-  $('recKpSuggest').innerHTML='';
-  $('recStatus').textContent='上传图片后可点「AI 识别」（需配置支持视觉的模型）；没有 API 时点「示例识别」体验完整流程。';
-  $('recStatus').className='recognize-status';
-  recImageStore=null;
-}
-function recSetStatus(txt,type){
-  var el=$('recStatus');el.textContent=txt;el.className='recognize-status'+(type?(' '+type):'');
-}
-function recReadFile(file){
-  return new Promise(function(resolve,reject){
-    var fr=new FileReader();
-    fr.onload=function(){resolve(fr.result);};
-    fr.onerror=function(){reject(new Error('读取文件失败'));};
-    fr.readAsDataURL(file);
-  });
-}
-function recCompress(dataUrl,maxW,quality){
-  return new Promise(function(resolve){
-    var img=new Image();
-    img.onload=function(){
-      try{
-        var scale=Math.min(1,maxW/img.width);
-        var w=Math.max(1,Math.round(img.width*scale));
-        var h=Math.max(1,Math.round(img.height*scale));
-        var cv=document.createElement('canvas');cv.width=w;cv.height=h;
-        cv.getContext('2d').drawImage(img,0,0,w,h);
-        resolve(cv.toDataURL('image/jpeg',quality));
-      }catch(e){resolve(dataUrl);}
-    };
-    img.onerror=function(){resolve(dataUrl);};
-    img.src=dataUrl;
-  });
-}
-function recSuggestKps(text){
-  if(!text)return [];
-  var hits=[];
-  Object.keys(KP_KEYWORDS).forEach(function(tid){
-    var kws=KP_KEYWORDS[tid],matched=0;
-    kws.forEach(function(k){if(text.indexOf(k)>-1)matched++;});
-    if(matched>0){
-      Object.keys(KB).forEach(function(sub){
-        KB[sub].topics.forEach(function(t){
-          if(t.id===tid)hits.push({sub:sub,topic:t,score:matched});
-        });
-      });
+    var html =
+      '<a class="back-link" href="#/mistakes">← 返回错题本</a>' +
+      '<div class="detail-head"><div><div class="detail-tags"><span class="q-subject">' + esc(item.subject) + '</span><span class="tag-mini">' + esc(item.grade) + '</span><span class="tag-mini">难度 ' + esc(item.difficulty) + '</span>' + stars(item.stars) + '</div>' +
+      '<h1>' + esc(item.kp) + '</h1></div>' +
+      '<div class="detail-actions">' + masteryBadge(item.mastery) + '<button class="btn btn-primary btn-sm" data-action="practice" data-id="' + item.id + '">开始专项训练</button></div></div>' +
+
+      '<div class="detail-grid">' +
+        '<div class="detail-left">' +
+          '<section class="paper"><div class="paper-label">题目原题</div><p class="question-text">' + esc(item.question) + '</p></section>' +
+
+          '<section class="paper"><div class="paper-label">我的作答</div>' +
+            '<p class="answer-text">' + marked + '</p>' +
+            '<div class="pen-note"><span class="pn-ic">✎</span><p>' + esc(item.annotation) + '</p></div>' +
+            '<div class="correct-block"><div class="cb-label">正确答案与解析</div><p>' + esc(item.answer) + '</p></div>' +
+          '</section>' +
+
+          '<section class="panel"><div class="panel-head"><h2>复习安排</h2><span class="panel-note">按遗忘曲线安排</span></div>' +
+            '<div class="review-mini">' + item.review.map(function (r) { return '<div class="rm-item"><b>' + esc(r.day) + '</b><span>' + esc(r.kp) + '</span></div>'; }).join('') + '</div>' +
+          '</section>' +
+        '</div>' +
+
+        '<aside class="detail-right"><div class="ai-card">' +
+          '<div class="ai-head"><div><div class="ai-eyebrow">AI 诊断报告</div><h2>这道题，错在哪一步</h2></div>' + ring(top.conf) + '</div>' +
+
+          '<div class="report-sec"><div class="rs-label"><i>1</i>症状 · 错因</div><div class="chip-row">' + errorChips(item) + '</div></div>' +
+
+          '<div class="report-sec"><div class="rs-label"><i>2</i>病灶 · 知识点拆解</div><div class="kp-tree">' + kpTree(item) + '</div></div>' +
+
+          '<div class="report-sec"><div class="rs-label"><i>3</i>定位 · 漏洞分析</div>' + vulnRows(item) + '</div>' +
+
+          '<div class="report-sec"><div class="rs-label"><i>4</i>处方 · 学习建议</div><div class="advice-box"><span class="adv-ic">' + IC.bulb + '</span><p>' + esc(item.advice) + '</p></div></div>' +
+
+          '<div class="ai-actions">' +
+            '<button class="btn btn-primary btn-block" data-action="add-review" data-id="' + item.id + '">加入复习计划</button>' +
+            '<button class="btn btn-outline btn-block" data-action="mastered" data-id="' + item.id + '">标记为已掌握</button>' +
+          '</div>' +
+          '<div class="ai-foot">AI 分析结果 · 置信度 ' + top.conf + '% · 可人工复核</div>' +
+        '</div></aside>' +
+      '</div>';
+
+    $('#view').innerHTML = html;
+  }
+﻿
+  /* ---------- 专项训练 ---------- */
+  function renderPractice() {
+    if (!state.practiceId) {
+      var html = '<div class="page-head"><div><h1>专项训练</h1><p>选择一道错题，按「基础 → 中档 → 拔高」三级做针对性训练。</p></div></div><div class="q-list">' +
+        APP.questions.map(function (x) {
+          return '<div class="practice-pick"><div class="pp-main"><span class="q-subject">' + esc(x.subject) + '</span>' +
+            '<h3>' + esc(x.kp) + '</h3><p>' + esc(x.question) + '</p></div>' +
+            '<div class="pp-side">' + stars(x.stars) + '<button class="btn btn-primary btn-sm" data-action="practice" data-id="' + x.id + '">开始训练</button></div></div>';
+        }).join('') + '</div>';
+      $('#view').innerHTML = html;
+      return;
+    }
+    var item = q(state.practiceId);
+    if (!item) { location.hash = '#/practice'; return; }
+    var t = item.train[state.practiceIdx] || item.train[0];
+    var pct = Math.round((state.practiceIdx + 1) / item.train.length * 100);
+
+    var html =
+      '<a class="back-link" href="#/practice">← 返回训练列表</a>' +
+      '<div class="detail-head"><div><div class="detail-tags"><span class="q-subject">' + esc(item.subject) + '</span><span class="tag-mini">' + esc(item.kp) + '</span></div><h1>专项训练</h1></div></div>' +
+      '<div class="progress-line"><span style="width:' + pct + '%"></span></div>' +
+      '<div class="train-tabs">' + item.train.map(function (x, i) {
+        return '<button class="train-tab' + (i === state.practiceIdx ? ' on' : '') + '" data-train="' + i + '"><b>' + esc(x.d) + '</b><span>' + esc(x.diff) + '</span></button>';
+      }).join('') + '</div>' +
+      '<section class="panel train-panel">' +
+        '<div class="train-q-head"><span class="train-badge">' + esc(t.d) + '</span><span class="panel-note">' + esc(t.diff) + '</span></div>' +
+        '<p class="question-text">' + esc(t.q) + '</p>' +
+        (state.revealed
+          ? '<div class="correct-block"><div class="cb-label">答案与解析</div><p>' + esc(t.a) + '</p><p style="margin-top:8px;color:var(--body);font-size:13px">' + esc(t.note) + '</p></div>' +
+            '<div class="self-eval"><span>这道题你做对了吗？</span><button class="btn btn-outline btn-sm" data-action="self-wrong">没做对</button><button class="btn btn-primary btn-sm" data-action="self-right">做对了</button></div>'
+          : '<button class="btn btn-primary" data-action="reveal">查看答案与解析</button>') +
+      '</section>';
+
+    $('#view').innerHTML = html;
+  }
+
+  /* ---------- 复习计划 ---------- */
+  function renderReview() {
+    var total = APP.questions.length;
+    var done = APP.questions.filter(function (x) { return state.reviewDone[x.id]; }).length;
+
+    var html =
+      '<div class="page-head"><div><h1>复习计划</h1><p>按遗忘曲线安排：第 1 天 → 第 3 天 → 第 7 天 → 考前回顾。</p></div></div>' +
+      '<div class="review-progress">' +
+        '<svg class="rp-ring" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="#E5EBF4" stroke-width="7"/>' +
+        '<circle cx="32" cy="32" r="26" fill="none" stroke="#2F6BFF" stroke-width="7" stroke-linecap="round" transform="rotate(-90 32 32)" stroke-dasharray="' + (2 * Math.PI * 26).toFixed(1) + '" stroke-dashoffset="' + (2 * Math.PI * 26 * (1 - done / total)).toFixed(1) + '"/>' +
+        '<text x="32" y="37" text-anchor="middle" class="rp-num">' + done + '/' + total + '</text></svg>' +
+        '<div class="rp-info"><div class="rp-t">本轮复习进度</div><div class="rp-bar"><span style="width:' + (done / total * 100) + '%"></span></div></div>' +
+      '</div>' +
+      '<div class="review-cards">' + APP.questions.map(function (x) {
+        var isDone = !!state.reviewDone[x.id];
+        var revealed = !!state.reviewRevealed[x.id];
+        var top = x.vulns[0];
+        return '<div class="review-card' + (isDone ? ' done' : '') + '">' +
+          '<div class="rc-top"><span class="q-subject">' + esc(x.subject) + '</span><span class="rc-due">' + esc(x.due) + '</span></div>' +
+          '<h3>' + esc(x.kp) + '</h3>' +
+          '<div class="rc-weak">薄弱点：' + esc(top.name) + '（错误率 ' + top.rate + '%）</div>' +
+          (revealed && !isDone
+            ? '<div class="correct-block" style="margin-bottom:12px"><div class="cb-label">参考答案</div><p>' + esc(x.answer) + '</p></div>'
+            : '') +
+          '<div class="rc-actions">' +
+            (isDone ? '<span class="rc-done">' + IC.check + ' 本轮已完成</span>'
+              : (revealed
+                ? '<button class="btn btn-primary btn-sm" data-action="review-done" data-id="' + x.id + '">完成复习</button>'
+                : '<button class="btn btn-primary btn-sm" data-action="review-start" data-id="' + x.id + '">遮答案重做</button>') +
+                '<a class="btn btn-outline btn-sm" href="#/mistake/' + x.id + '">看错因</a>') +
+          '</div></div>';
+      }).join('') + '</div>';
+
+    $('#view').innerHTML = html;
+  }
+
+  /* ---------- 学习报告 ---------- */
+  function renderReport() {
+    var hard = APP.questions.filter(function (x) { return x.mastery !== 'mastered'; }).slice(0, 5);
+    var html =
+      '<div class="page-head"><div><h1>学习报告</h1><p>掌握度、漏洞与提分轨迹——用数据看见自己的变化。</p></div></div>' +
+
+      '<div class="report-grid">' +
+        '<div class="chart-card"><div class="chart-title"><h2>知识点掌握度趋势</h2><span>近 5 周</span></div><div class="chart-sub">掌握度按错题重做正确率与复习完成度综合计算</div>' +
+          lineChart(APP.report.masteryTrend, '#2F6BFF', '%') + '</div>' +
+        '<div class="summary-card"><div class="sc-eyebrow">AI 周报</div><h2>本周学习总结</h2><p>' + esc(APP.report.summary) + '</p>' +
+          '<div class="summary-stats"><div><b>' + APP.questions.length + '</b><span>错题总数</span></div><div><b>' + APP.user.streak + '</b><span>连续学习天数</span></div></div></div>' +
+      '</div>' +
+
+      '<div class="report-grid">' +
+        '<div class="chart-card"><div class="chart-title"><h2>提分轨迹</h2><span>化学单科</span></div><div class="chart-sub">来自阶段测评成绩（示例数据）</div>' +
+          lineChart(APP.report.scoreTrend, '#10B981', '') + '</div>' +
+        '<div class="chart-card"><div class="chart-title"><h2>本周学习时长</h2><span>分钟</span></div><div class="chart-sub">周一至周日</div>' +
+          barChart(APP.report.weekMinutes) + '</div>' +
+      '</div>' +
+
+      '<section class="panel"><div class="panel-head"><h2>知识点掌握度</h2><a class="panel-link" href="#/mistakes">查看错题 →</a></div>' +
+        hard.map(function (x) {
+          var top = x.kps[0];
+          return '<div class="weak-row" data-action="go" data-href="#/mistake/' + x.id + '">' +
+            '<div class="weak-top"><span>' + esc(top.l1) + ' › ' + esc(top.l2) + '</span><b>' + top.rate + '% 错误率</b></div>' +
+            '<div class="weak-bar"><span style="width:' + top.rate + '%"></span></div></div>';
+        }).join('') +
+      '</section>' +
+
+      '<section class="panel"><div class="panel-head"><h2>学习成就</h2><span class="panel-note">每一次坚持都算数</span></div>' +
+        '<div class="achievement-grid">' +
+          '<div class="ach-card"><div class="ach-ic">' + IC.flame + '</div><h3>连续学习</h3><p>' + APP.user.streak + ' 天</p></div>' +
+          '<div class="ach-card"><div class="ach-ic">' + IC.book + '</div><h3>错题归档</h3><p>' + APP.questions.length + ' 道</p></div>' +
+          '<div class="ach-card"><div class="ach-ic">' + IC.target + '</div><h3>专项训练</h3><p>' + (APP.questions.length * 3) + ' 题</p></div>' +
+          '<div class="ach-card"><div class="ach-ic">' + IC.medal + '</div><h3>连续 12 天</h3><p>超越 68% 的同学</p></div>' +
+        '</div></section>';
+
+    $('#view').innerHTML = html;
+  }
+﻿
+  /* ---------- 拍照诊断弹窗 ---------- */
+  function openUpload() {
+    state.upload = { step: 'pick', qid: null, stage: 0, fileName: '', recognized: '', result: null };
+    renderModal();
+  }
+  function closeModal() { $('#modalRoot').innerHTML = ''; }
+
+  function renderModal() {
+    var u = state.upload, root = $('#modalRoot');
+    if (!root) return;
+
+    if (u.step === 'pick') {
+      root.innerHTML = '<div class="modal-mask" data-action="close-modal"><div class="modal" data-stop>' +
+        '<div class="modal-head"><h2>拍照诊断</h2><button class="modal-x" data-action="close-modal">' + IC.close + '</button></div>' +
+        '<div class="upload-zone" id="uploadZone"><div class="uz-ic">' + IC.camera + '</div><div class="uz-t">点击选择错题照片，或拖拽到这里</div><div class="uz-s">支持 JPG / PNG，尽量拍全题干与手写过程</div>' +
+        '<input type="file" id="fileInput" accept="image/*" hidden>' + (u.fileName ? '<div class="uz-file">已选择：' + esc(u.fileName) + '</div>' : '') + '</div>' +
+        '<div class="picker"><div class="picker-t">没有照片？选一道示例错题，体验完整的 AI 诊断流程：</div><div class="picker-chips">' +
+          APP.questions.map(function (x) { return '<button class="picker-chip' + (u.qid === x.id ? ' on' : '') + '" data-pick="' + x.id + '"><b>' + esc(x.subject) + '</b>' + esc(x.kp) + '</button>'; }).join('') +
+        '</div></div>' +
+        '<div class="modal-foot"><span class="demo-note">原型演示 · AI 分析由 ai.js 提供内置样例</span>' +
+        '<button class="btn btn-primary" id="startAnalyze" ' + (u.qid ? '' : 'disabled') + '>' + IC.camera + ' 开始 AI 分析</button></div>' +
+        '</div></div>';
+    } else if (u.step === 'analyzing') {
+      root.innerHTML = '<div class="modal-mask"><div class="modal"><div class="modal-head"><h2>AI 正在分析</h2></div>' +
+        '<div class="analyzing"><div class="spinner"></div><div class="an-steps">' + AI.STEPS.map(function (s, i) {
+          var cls = i < u.stage ? 'done' : (i === u.stage ? 'doing' : '');
+          return '<div class="an-step ' + cls + '"><span class="an-dot">' + (i < u.stage ? '✓' : (i + 1)) + '</span>' + esc(s) + '</div>';
+        }).join('') + '</div><div class="an-tip">接入真实 API 后，这一步将调用多模态模型完成识图与错因分析</div></div>' +
+        '</div></div>';
+    } else if (u.step === 'review') {
+      var item = u.result || {};
+      root.innerHTML = '<div class="modal-mask" data-action="close-modal"><div class="modal" data-stop>' +
+        '<div class="modal-head"><h2>确认识别结果</h2><button class="modal-x" data-action="close-modal">' + IC.close + '</button></div>' +
+        '<div class="done-banner">' + IC.check + ' 识别完成，请核对题干（可手动修正）</div>' +
+        '<div class="ocr-area"><label>识别到的题目</label><textarea class="ocr-text" id="ocrText">' + esc(u.recognized) + '</textarea></div>' +
+        '<div class="done-grid">' +
+          '<div class="done-block"><span class="db-l">学科与知识点</span><span class="db-v">' + esc(item.subject) + ' · ' + esc(item.kp) + '</span></div>' +
+          '<div class="done-block"><span class="db-l">主要错因</span><span class="db-v">' + esc(item.errors[0].name) + '（' + item.errors[0].conf + '%）</span></div>' +
+          '<div class="done-block"><span class="db-l">生成同类题</span><span class="db-v">3 道（基础 / 中档 / 拔高）</span></div>' +
+        '</div>' +
+        '<div class="modal-foot"><button class="btn btn-outline" data-action="re-pick">重新选择</button>' +
+        '<button class="btn btn-primary" data-action="finish-upload" data-id="' + item.id + '">生成诊断报告 →</button></div>' +
+        '</div></div>';
+    }
+  }
+
+  function startAnalyze() {
+    var u = state.upload;
+    if (!u.qid) return;
+    u.step = 'analyzing'; u.stage = 0;
+    renderModal();
+    AI.analyze({ sampleId: u.qid }, function (i) {
+      u.stage = i;
+      if (u.step === 'analyzing') renderModal();
+    }).then(function (result) {
+      u.result = result;
+      u.recognized = result.question;
+      u.step = 'review';
+      renderModal();
+    });
+  }
+
+  /* ---------- 事件 ---------- */
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-action]');
+    if (!el) return;
+    if (el.classList.contains('modal-mask') && e.target.closest('.modal')) return;
+    var action = el.getAttribute('data-action');
+    var id = el.getAttribute('data-id');
+
+    if (action === 'upload') { openUpload(); }
+    else if (action === 'close-modal') { closeModal(); }
+    else if (action === 're-pick') { state.upload.step = 'pick'; renderModal(); }
+    else if (action === 'go') { location.hash = el.getAttribute('data-href'); }
+    else if (action === 'practice') { state.practiceIdx = 0; state.revealed = false; location.hash = '#/practice/' + id; }
+    else if (action === 'reveal') { state.revealed = true; renderPractice(); }
+    else if (action === 'self-right') { toast('已记录：掌握度提升，下次复习间隔延长'); state.revealed = false; nextTrain(); }
+    else if (action === 'self-wrong') { toast('已记录：该知识点将缩短复习间隔，并补推 1 道同类题'); state.revealed = false; nextTrain(); }
+    else if (action === 'add-review') { toast('已加入复习计划，将按遗忘曲线提醒'); }
+    else if (action === 'mastered') {
+      var it = q(id);
+      if (it) { it.mastery = 'mastered'; it.stars = Math.min(5, it.stars + 2); it.due = '考前回顾'; saveState(); renderDetail(id); toast('已标记为掌握，后续将减少复习频率'); }
+    }
+    else if (action === 'review-start') { state.reviewRevealed[id] = true; renderReview(); }
+    else if (action === 'review-done') {
+      state.reviewDone[id] = true; state.reviewRevealed[id] = false;
+      var x = q(id);
+      if (x) { x.stars = Math.min(5, x.stars + 1); if (x.stars >= 4) x.mastery = 'mastered'; }
+      saveState(); renderReview(); toast('完成复习，掌握度 +1');
+    }
+    else if (action === 'finish-upload') {
+      var item = q(id);
+      if (item) { item.mastery = 'weak'; item.due = '今天'; item.stars = Math.max(1, item.stars - 1); }
+      var txt = $('#ocrText'); if (txt && txt.value.trim()) { /* 用户修正后的题干 */ }
+      saveState(); closeModal(); toast('已生成诊断报告，并加入错题本'); location.hash = '#/mistake/' + id;
     }
   });
-  hits.sort(function(x,y){return y.score-x.score;});
-  return hits.slice(0,4);
-}
-function recRenderKpChips(){
-  var q=$('recQuestion').value;
-  var hits=recSuggestKps(q);
-  var box=$('recKpSuggest');box.innerHTML='';
-  if(!hits.length){
-    box.innerHTML='<span style="font-size:13.5px;color:var(--muted)">未匹配到内置知识点，可手动输入，或先输入更多题目内容。</span>';
-    return;
-  }
-  hits.forEach(function(it){
-    var chip=document.createElement('button');chip.type='button';chip.className='kp-chip';
-    var subName=KB[it.sub]?KB[it.sub].name:it.sub;
-    chip.textContent=subName+' · '+it.topic.name;
-    chip.onclick=function(){chip.classList.toggle('selected');};
-    box.appendChild(chip);
-  });
-}
-function recRecognizeAI(){
-  var cfg=getApiCfg();
-  if(!cfg.key){recSetStatus('未配置 API Key。点击「示例识别」体验完整流程，或到 ⚙️ 设置 填写 Key 后使用真实识别。','err');return;}
-  if(!recImageStore){recSetStatus('请先上传错题图片','err');return;}
-  var btn=$('recRecognizeBtn');btn.disabled=true;var old=btn.textContent;btn.textContent='AI 识别中…';
-  recSetStatus('AI 正在识别图片内容，请稍候…','');
-  var prompt='你是一位经验丰富的高中理科教师。请仔细分析这张学生错题图片，提取以下信息，只输出一个 JSON 对象（不要输出其他文字或 Markdown 标记）：{"question":"题目原文","student_answer":"学生答案（没有则为空字符串）","correct_answer":"正确答案（无法判断则为空字符串）","knowledge_points":["最可能的知识点名称"]}';
-  callAI([{role:'user',content:[{type:'text',text:prompt},{type:'image_url',image_url:{url:recImageStore}}]}])
-    .then(function(content){
-      var data=null;
-      try{data=JSON.parse(content.replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim());}catch(e){}
-      if(!data||(!data.question&&!data.knowledge_points))throw new Error('未能从图片提取有效信息');
-      $('recQuestion').value=data.question||'';
-      $('recStudent').value=data.student_answer||'';
-      $('recCorrect').value=data.correct_answer||'';
-      $('recResultCard').style.display='block';
-      recRenderKpChips();
-      var kps=(data.knowledge_points||[]).filter(Boolean);
-      if(kps.length){$('recKpManual').value=kps.join('、');}
-      recSetStatus('✅ 识别成功，请核对下方结果后记录','ok');
-    })
-    .catch(function(err){
-      var isVision=/image|vision|multimodal|unsupported|not support|not_supported/i.test(err.message||'');
-      recSetStatus('识别失败。'+(isVision?'（当前模型可能不支持图片输入，可在 ⚙️ 设置 更换支持视觉的模型）':'')+' 可改用「示例识别」或手动填写。','err');
-    })
-    .finally(function(){btn.disabled=false;btn.textContent=old;});
-}
-function recDemoFill(){
-  $('recQuestion').value='配平并分析：酸性条件下，KMnO₄ 与 H₂O₂ 反应。标出电子转移方向，并判断氧化剂、还原剂与氧化产物。';
-  $('recStudent').value='KMnO₄ 中 Mn 从 +7 降到 +2，被还原，所以 KMnO₄ 是氧化剂；H₂O₂ 中 O 从 -1 升到 0，被氧化，所以 H₂O₂ 是还原剂。';
-  $('recCorrect').value='2KMnO₄ + 5H₂O₂ + 3H₂SO₄ = 2MnSO₄ + K₂SO₄ + 5O₂↑ + 8H₂O。Mn(+7→+2)被还原，KMnO₄ 作氧化剂；O(-1→0)被氧化，H₂O₂ 作还原剂，氧化产物为 O₂。';
-  $('recResultCard').style.display='block';
-  recRenderKpChips();
-  $('recKpManual').value='';
-  recSetStatus('✅ 已载入示例错题（演示数据），可编辑后记录到错题集','ok');
-}
-function recSave(){
-  var q=$('recQuestion').value.trim();
-  var st=$('recStudent').value.trim();
-  var ans=$('recCorrect').value.trim();
-  if(!q){toast('请填写题目原文','error');return;}
-  // collect selected chips + manual
-  var kpNames=[];
-  document.querySelectorAll('#recKpSuggest .kp-chip.selected').forEach(function(ch){kpNames.push(ch.textContent.trim());});
-  if($('recKpManual').value.trim())kpNames.push($('recKpManual').value.trim());
-  var topicMatch=null;
-  if(kpNames.length){
-    var first=kpNames[0];
-    Object.keys(KB).forEach(function(sub){
-      KB[sub].topics.forEach(function(t){
-        if(first.indexOf(t.name)>-1&&!topicMatch)topicMatch={sub:sub,topic:t};
-      });
-    });
-  }
-  var sub=topicMatch?topicMatch.sub:'chemistry';
-  var topicName=topicMatch?topicMatch.topic.name:(kpNames[0]||'未分类');
-  var topicId=topicMatch?topicMatch.topic.id:'manual-'+Date.now().toString(36);
-  var col=getCol();
-  col.unshift({id:'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),sub:sub,topicId:topicId,topicName:topicName,q:q,type:'open',student:st,answer:ans,kps:kpNames,date:todayStr(),status:'open'});
-  if(col.length>60)col.length=60;
-  lsSet(LS_COL,col);
-  updateBadges();
-  renderRecognize();
-  toast('✅ 已记录到错题集','success');
-}
-/* ===================== 初始化 ===================== */
 
-function init(){
-  // nav
-  $('navDashBtn').onclick=function(){renderDashboard();showView('viewDashboard');};
-  $('navLibBtn').onclick=function(){renderLibrary();showView('viewLibrary');};
-  $('navColBtn').onclick=function(){renderCollection();showView('viewCollection');};
-  $('navRecBtn').onclick=function(){renderRecognize();showView('viewRecognize');};
-  $('settingsBtn').onclick=openSettings;
-  // dashboard quick start
-  $('quickOx').onclick=function(){quickStart('chemistry','chem-oxidation');};
-  $('quickRes').onclick=function(){quickStart('biology','bio-respiration');};
-  $('quickRandom').onclick=function(){
-    var arr=allTopics();var o=arr[Math.floor(Math.random()*arr.length)];
-    startQuiz(o.sub,o.topic,o.topic.questions.slice());
-  };
-  // detail back
-  $('detailBackBtn').onclick=function(){renderLibrary();showView('viewLibrary');};
-  // quiz
-  $('qNextBtn').onclick=nextQuestion;
-  $('quizBackBtn').onclick=backToTopic;
-  // collection
-  $('colClearBtn').onclick=clearAll;
-  // settings modal
-  $('saveSettingsBtn').onclick=saveSettings;
-  document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){$(b.getAttribute('data-close')).classList.remove('show');};});
-  document.querySelectorAll('.modal-overlay').forEach(function(m){m.addEventListener('click',function(e){if(e.target===m)m.classList.remove('show');});});
-  document.querySelectorAll('.modal-close').forEach(function(x){x.onclick=function(){x.closest('.modal-overlay').classList.remove('show');};});
-  // AI
-  $('aiGenBtn').onclick=aiGenerate;
-  // recognize
-  $('recImageInput').addEventListener('change',function(e){
-    var file=e.target.files&&e.target.files[0];e.target.value='';
-    if(!file)return;
-    if(!/^image\//.test(file.type)){toast('请选择图片文件','error');return;}
-    recSetStatus('正在处理图片…','');
-    recReadFile(file).then(function(raw){
-      return recCompress(raw,720,0.7);
-    }).then(function(store){
-      recImageStore=store;
-      $('recPreviewImg').src=store;
-      $('recPreviewWrap').classList.add('show');
-      recSetStatus('图片已就绪，可点击「AI 识别」或「示例识别」','');
-    }).catch(function(err){recSetStatus('图片处理失败：'+err.message,'err');});
+  document.addEventListener('click', function (e) {
+    var seg = e.target.closest('[data-subject]');
+    if (seg) { state.subject = seg.getAttribute('data-subject'); renderMistakes(); return; }
+    var st = e.target.closest('[data-status]');
+    if (st) { state.status = st.getAttribute('data-status'); renderMistakes(); return; }
+    var tr = e.target.closest('[data-train]');
+    if (tr) { state.practiceIdx = +tr.getAttribute('data-train'); state.revealed = false; renderPractice(); return; }
+    var pick = e.target.closest('[data-pick]');
+    if (pick) { state.upload.qid = pick.getAttribute('data-pick'); renderModal(); return; }
+    var zone = e.target.closest('#uploadZone');
+    if (zone && !e.target.closest('#fileInput')) { var fi = $('#fileInput'); if (fi) fi.click(); return; }
+    var sa = e.target.closest('#startAnalyze');
+    if (sa) { startAnalyze(); return; }
   });
-  $('recClearImgBtn').onclick=function(){$('recPreviewWrap').classList.remove('show');recImageStore=null;recSetStatus('已清除图片','');};
-  $('recRecognizeBtn').onclick=recRecognizeAI;
-  $('recDemoBtn').onclick=recDemoFill;
-  $('recQuestion').addEventListener('input',recRenderKpChips);
-  $('recSaveBtn').onclick=recSave;
-  // reset quiz card display for first open
-  $('qCard').style.display='block';
-  $('resultCard').style.display='none';
-  renderDashboard();renderLibrary();renderCollection();updateBadges();
-  showView('viewDashboard');
-}
-if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}
-else{init();}
+
+  document.addEventListener('input', function (e) {
+    if (e.target.id === 'mistakeSearch') {
+      state.keyword = e.target.value; renderMistakes();
+      var inp = $('#mistakeSearch');
+      if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+      return;
+    }
+    if (e.target.id === 'topSearch') {
+      state.keyword = e.target.value;
+      if (state.page !== 'mistakes') location.hash = '#/mistakes'; else renderMistakes();
+    }
+  });
+
+  document.addEventListener('change', function (e) {
+    if (e.target.id === 'fileInput' && e.target.files && e.target.files[0]) {
+      state.upload.fileName = e.target.files[0].name;
+      if (!state.upload.qid) state.upload.qid = APP.questions[0].id;
+      renderModal();
+    }
+  });
+
+  function nextTrain() {
+    var item = q(state.practiceId);
+    var len = item ? item.train.length : 3;
+    if (state.practiceIdx < len - 1) { state.practiceIdx++; renderPractice(); }
+    else { toast('本轮三级训练已完成 👏'); location.hash = '#/mistakes'; }
+  }
+
+  /* ---------- 启动 ---------- */
+  window.addEventListener('hashchange', route);
+  loadState();
+  route();
 })();

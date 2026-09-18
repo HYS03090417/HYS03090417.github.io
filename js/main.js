@@ -1,5 +1,6 @@
-/* ============================================================
-   何春江 · 求职作品集 交互
+﻿/* ============================================================
+   错题星 · 作品集交互
+   导航 / 滚动浮现 / 顶栏状态
    ============================================================ */
 (function () {
   'use strict';
@@ -9,11 +10,28 @@
   var links = document.getElementById('navLinks');
   if (toggle && links) {
     toggle.addEventListener('click', function () {
-      links.classList.toggle('open');
+      var open = links.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
     links.querySelectorAll('a').forEach(function (a) {
       a.addEventListener('click', function () { links.classList.remove('open'); });
     });
+    document.addEventListener('click', function (e) {
+      if (!links.contains(e.target) && !toggle.contains(e.target)) {
+        links.classList.remove('open');
+      }
+    });
+  }
+
+  /* 顶栏滚动状态 */
+  var nav = document.getElementById('navbar');
+  if (nav) {
+    var onScroll = function () {
+      if (window.scrollY > 8) { nav.classList.add('scrolled'); }
+      else { nav.classList.remove('scrolled'); }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
   }
 
   /* 滚动浮现 */
@@ -30,21 +48,5 @@
     revealEls.forEach(function (el) { io.observe(el); });
   } else {
     revealEls.forEach(function (el) { el.classList.add('in'); });
-  }
-
-  /* Prompt 案例库 Tab */
-  var tabs = document.querySelectorAll('.prompt-tab');
-  var panels = document.querySelectorAll('.prompt-panel');
-  if (tabs.length && panels.length) {
-    tabs.forEach(function (tab) {
-      tab.addEventListener('click', function () {
-        var target = tab.getAttribute('data-tab');
-        tabs.forEach(function (t) { t.classList.remove('active'); });
-        panels.forEach(function (p) { p.classList.remove('active'); });
-        tab.classList.add('active');
-        var panel = document.getElementById(target);
-        if (panel) panel.classList.add('active');
-      });
-    });
   }
 })();
