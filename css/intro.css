@@ -472,3 +472,28 @@ img{max-width:100%;display:block}
 .doc-chip b{font-size:10.5px;font-weight:800;color:var(--teal-deep);background:var(--teal-soft);border-radius:5px;padding:2px 6px;letter-spacing:.6px}
 .doc-chip:hover{border-color:var(--teal);color:var(--teal-deep);transform:translateY(-1px);box-shadow:var(--shadow)}
 @media (max-width:640px){.hero-docs .hd-label{width:100%}.doc-chip{flex:1;justify-content:center}}
+﻿
+/* ============================================================
+   新增模块（2026-09）：竞品矩阵 / 六大模块 / KPI / 数据口径
+   ============================================================ */
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--sheet);box-shadow:var(--shadow);margin:0 0 18px}
+.cmp-table{border-collapse:collapse;width:100%;min-width:780px;font-size:12.5px}
+.cmp-table th{background:var(--teal-soft);color:var(--teal-deep);border-bottom:1px solid var(--line);padding:11px 13px;text-align:left;font-weight:700;white-space:nowrap}
+.cmp-table td{border-bottom:1px solid var(--line);padding:10px 13px;color:var(--ink-2);white-space:nowrap}
+.cmp-table tr:last-child td{border-bottom:none}
+.cmp-table td:first-child{font-weight:700;color:var(--ink)}
+.cmp-table tr:nth-child(even) td{background:#FAFCFB}
+.mod-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.mod-card{background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);transition:.2s}
+.mod-card:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(34,48,60,.1)}
+.mod-ic{display:inline-flex;width:32px;height:32px;align-items:center;justify-content:center;border-radius:9px;background:var(--teal-soft);color:var(--teal-deep);font-family:var(--font-mono);font-size:12px;font-weight:700;margin-bottom:10px}
+.mod-card h3{font-size:15px;color:var(--ink);margin-bottom:5px}
+.mod-card p{font-size:13px;color:var(--ink-2);line-height:1.7}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.kpi-card{background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+.kpi-v{display:block;font-family:var(--font-mono);font-size:24px;font-weight:700;color:var(--teal-deep);line-height:1.2}
+.kpi-v span{font-size:12px;color:var(--muted);font-weight:400}
+.kpi-l{font-size:13.5px;font-weight:700;color:var(--ink);margin-top:6px}
+.kpi-s{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.6}
+@media (max-width:900px){.mod-grid{grid-template-columns:repeat(2,1fr)}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:560px){.mod-grid,.kpi-grid{grid-template-columns:1fr}}
